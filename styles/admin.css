@@ -238,6 +238,10 @@
   .pend-card { padding: 20px; }
   .pend-card__spacer { min-height: 12px; }
   .card-head { flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 16px; }
+  /* Com dez meses num ecrã estreito as colunas ficam com ~27px: os valores
+     por cima das barras sobrepõem-se, e o total do mês já está no cabeçalho. */
+  .chart__val { display: none; }
+  .chart { gap: 4px; }
   .card-head--table { padding: 16px 16px 4px; }
 
   /* Separadores e barra de ferramentas deslizam em vez de encolher */
