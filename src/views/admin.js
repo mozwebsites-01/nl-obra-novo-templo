@@ -7,13 +7,14 @@ import {
 } from '../format.js';
 import { openInstallGuide } from '../install.js';
 
+// Cada item leva também um rótulo curto, usado na barra inferior do telemóvel.
 const NAV = [
-  ['painel', 'Painel', 'layout-dashboard'],
-  ['confirmacoes', 'Confirmações', 'inbox'],
-  ['contribuicoes', 'Contribuições', 'receipt'],
-  ['mensagens', 'Mensagens', 'message-circle'],
-  ['membros', 'Membros', 'users'],
-  ['obra', 'Obra', 'landmark'],
+  ['painel', 'Painel', 'layout-dashboard', 'Painel'],
+  ['confirmacoes', 'Confirmações', 'inbox', 'Confirmar'],
+  ['contribuicoes', 'Contribuições', 'receipt', 'Recibos'],
+  ['mensagens', 'Mensagens', 'message-circle', 'Mensagens'],
+  ['membros', 'Membros', 'users', 'Membros'],
+  ['obra', 'Obra', 'landmark', 'Obra'],
 ];
 
 const REJECT_REASONS = [
@@ -38,7 +39,7 @@ export async function renderAdmin(root, page, user, param) {
       <aside class="a-side">
         <div class="a-side__logo"><img src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="148" height="65"></div>
         <nav class="a-nav" aria-label="Administração">
-          ${NAV.map(([k, l, ic]) => `<a href="#/a/${k}" data-nav="${k}" class="${k === page ? 'is-active' : ''}" ${k === page ? 'aria-current="page"' : ''}>${icon(ic, 18)}<span>${l}</span>${att[k] ? `<span class="badge num">${att[k]}</span>` : ''}</a>`).join('')}
+          ${NAV.map(([k, l, ic, short]) => `<a href="#/a/${k}" data-nav="${k}" class="${k === page ? 'is-active' : ''}" ${k === page ? 'aria-current="page"' : ''}>${icon(ic, 18)}<span class="a-nav__full">${l}</span><span class="a-nav__short">${short}</span>${att[k] ? `<span class="badge num">${att[k]}</span>` : ''}</a>`).join('')}
         </nav>
         <div class="a-side__foot">
           <button type="button" class="a-side__ghost" data-act="install">${icon('smartphone', 16)}<span>Instalar no telemóvel</span>${icon('chevron-right', 14)}</button>
