@@ -1,0 +1,10 @@
+{
+  "name": "nl-obra-novo-templo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Protótipo: transparência da Obra do Novo Templo — Nataniel Litsure Ministries",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

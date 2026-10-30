@@ -1,0 +1,31 @@
+/* Tokens derivados do logótipo Nataniel Litsure Ministries.
+   Proporção visual: ~80% neutros, ~18% azul-marinho, ~2% laranja. */
+:root {
+  --navy: #0B1060;
+  --navy-700: #070B45;
+  --orange: #D9800A;           /* só detalhes: barra da obra, item ativo, contador, destaques de valores */
+
+  --bg: #F6F6F4;
+  --surface: #FFFFFF;
+  --ink: #14152B;
+  --ink-2: #6A6B7A;
+  --line: #E3E3E8;
+  --line-strong: #CFD0D8;
+  --tint: #EEF0F7;
+
+  --ok: #3F6B4F;
+  --pending: #9A6A1E;
+  --bad: #8C3B3B;
+
+  /* Fonte única do sistema */
+  --font-display: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --font-ui: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+
+  --r: 6px;
+  --r-lg: 8px;
+  --shadow: 0 1px 2px rgba(20, 21, 43, 0.04);
+  --shadow-pop: 0 12px 32px rgba(20, 21, 43, 0.10);
+
+  --ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --t: 180ms;
+}
