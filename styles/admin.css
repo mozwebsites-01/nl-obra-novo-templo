@@ -152,6 +152,13 @@
 .obra-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .preview { padding: 28px; background: var(--bg); border-radius: var(--r-lg); border: 1px dashed var(--line-strong); }
 .preview .obra { margin-top: 12px; }
+/* Como o membro vê a obra: o mesmo cartão, em ponto pequeno */
+.obra__amount { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-size: 32px; line-height: 1.1; font-weight: 700; color: var(--navy); }
+.obra__unit { font-family: var(--font-display); font-size: 15px; font-weight: 500; color: var(--ink-2); }
+.obra__of { margin-top: 8px; font-size: 14px; }
+.obra .progress { margin-top: 16px; }
+.obra__foot { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; font-size: 13.5px; color: var(--ink-2); }
+.obra__foot strong { color: var(--ink); font-weight: 600; }
 
 @media (max-width: 1100px) {
   /* minmax(0, …): sem isto as colunas crescem até ao conteúdo e a página transborda */
