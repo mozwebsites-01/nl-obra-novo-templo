@@ -3,7 +3,14 @@
 Protótipo local do sistema de transparência da Obra: os membros declaram as suas
 contribuições, a tesouraria confirma-as e só os valores confirmados contam para a meta.
 
-## Abrir
+## Endereço público
+
+https://mozwebsites-01.github.io/nl-obra-novo-templo/
+
+Cada pessoa tem os seus próprios dados de demonstração (guardados no navegador),
+por isso o que um membro declara num telemóvel não aparece na tesouraria noutro aparelho.
+
+## Abrir localmente
 
 ```bash
 npm start
