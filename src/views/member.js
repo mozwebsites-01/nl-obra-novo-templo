@@ -2,7 +2,7 @@ import * as store from '../store.js';
 import {
   esc, icon, avatar, barChart, receipt, toast, openDialog, confirmDialog, navigate, greeting,
 } from '../ui.js';
-import { openInstallGuide, isInstalled, bannerDismissed, dismissBanner } from '../install.js';
+import { openInstallGuide, isInstalled } from '../install.js';
 import {
   METODOS, ESTADOS, money, pct, fmtDate, fmtDateShort, fmtDateTime, monthLong, phoneFmt, isoDate, parseAmount, parseISO, defaultPayer,
 } from '../format.js';
@@ -77,6 +77,21 @@ function toggleHidden() {
   return on;
 }
 
+// A última contribuição, em destaque no Início.
+function trackerCard(c) {
+  return `<a class="track" href="#/m/recibo/${c.id}">
+    <div class="track__top">
+      <span class="tx__icon">${icon(METHOD_ICON[c.metodo], 20)}</span>
+      <div class="tx__main">
+        <p class="track__eyebrow">A sua última contribuição</p>
+        <p class="tx__title amt">${money(c.valor)} <span class="muted" style="font-weight:500">· ${METODOS[c.metodo]}</span></p>
+        <p class="tx__sub">${dayLabel(c.data)} · ${esc(c.ref)}</p>
+      </div>
+      ${icon('chevron-right', 18)}
+    </div>
+  </a>`;
+}
+
 // Início -------------------------------------------------------------------
 // O membro vê apenas as suas contribuições e a evolução mensal (sem montantes da obra).
 async function inicio(main, user) {
@@ -85,9 +100,11 @@ async function inicio(main, user) {
     store.listContributions({ membroId: user.id }), store.getSettings(), store.unreadCount(user.id),
     store.unreadMessagesForMember(user.id),
   ]);
-  // Ecrã compacto: tudo cabe num telemóvel sem scroll (cabeçalho, gráfico e 2 últimas contribuições)
+  // Ecrã compacto: tudo cabe num telemóvel sem scroll
+  const last = recent[0];
   main.innerHTML = `
-    <header class="hero hero--compact">
+    <header class="hero hero--home">
+      <svg class="hero__arc" viewBox="0 0 200 200" aria-hidden="true"><path d="M 13.3 92.4 A 87 87 0 1 1 173.8 146.1" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
       <div class="hero__row">
         <a class="who" href="#/m/conta">${avatar(user, 44)}<div><p class="who__hi">${greeting()} · ${esc(settings.obraNome)}</p><p class="who__name">${esc(user.nome)}</p></div></a>
         <button type="button" class="round-btn" data-notif aria-label="Avisos${unread ? ` (${unread} por ler)` : ''}">${icon('bell', 20)}${unread ? `<span class="count">${unread}</span>` : ''}</button>
@@ -104,26 +121,22 @@ async function inicio(main, user) {
       </nav>
     </header>
 
-    <div class="m-body m-body--compact">
-      ${!isInstalled() && !bannerDismissed() ? `<section class="install-card" data-install-card>
-        <img src="assets/icons/icon-192.png" alt="" width="36" height="36">
-        <p class="install-card__title">Instale a app no telemóvel</p>
-        <button type="button" class="btn btn-primary btn-sm" data-install-open>Instalar</button>
-        <button type="button" class="install-card__x" data-install-x aria-label="Dispensar">${icon('x', 16)}</button>
-      </section>` : ''}
+    <div class="m-body m-body--home">
+      ${last ? trackerCard(last) : `<a class="track track--empty" href="#/m/contribuir"><span class="tx__icon">${icon('plus-circle', 20)}</span><div class="tx__main"><p class="track__eyebrow">Ainda sem contribuições</p><p class="tx__title">Registe a sua primeira contribuição</p></div>${icon('chevron-right', 18)}</a>`}
+
       <section class="sec">
-        <div class="sec-head"><h2>Como foram as contribuições</h2></div>
-        <div class="tx-card tx-card--pad tx-card--chart">${barChart(series, { height: 92, private: true })}</div>
+        <div class="sec-head"><h2>Como foram as contribuições</h2><span class="legend"><i></i>mês atual</span></div>
+        <div class="tx-card tx-card--pad tx-card--chart">${barChart(series, { height: 108, private: true })}</div>
       </section>
-      <section class="sec">
-        <div class="sec-head"><h2>Últimas contribuições</h2><a href="#/m/historico">Ver todas ${icon('chevron-right', 16)}</a></div>
-        ${recent.length ? `<div class="tx-card tx-card--flat">${recent.slice(0, 2).map(txRow).join('')}</div>` : '<p class="empty">Ainda não registou contribuições. Comece pelo botão Contribuir.</p>'}
-      </section>
+
+      <figure class="verse">
+        <span class="verse__mark" aria-hidden="true">“</span>
+        <blockquote>Deus ama ao que dá com alegria.</blockquote>
+        <figcaption>2 Coríntios 9:7</figcaption>
+      </figure>
     </div>`;
 
   main.querySelectorAll('[data-notif]').forEach((b) => b.addEventListener('click', () => openNotifications(main, user)));
-  main.querySelector('[data-install-open]')?.addEventListener('click', openInstallGuide);
-  main.querySelector('[data-install-x]')?.addEventListener('click', () => { dismissBanner(); main.querySelector('[data-install-card]').remove(); toast('Pode instalar a app mais tarde em Conta'); });
 }
 
 // Contribuir ---------------------------------------------------------------

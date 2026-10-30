@@ -235,33 +235,41 @@ a.tx:hover, button.tx:hover { background: #F4F4F7; }
 .notif.is-unread::after { content: ""; position: absolute; top: 22px; right: 20px; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
 .notif-list { max-height: 60dvh; overflow-y: auto; }
 
-/* Cartão "Instalar a app" */
-.install-card {
-  position: relative; display: flex; align-items: center; gap: 12px;
-  margin-bottom: 28px; padding: 14px 40px 14px 14px; border-radius: 16px;
-  background: var(--tint); border: 1px solid #DDE1EE;
-}
-.install-card img { border-radius: 12px; flex: none; }
-.install-card__text { flex: 1; min-width: 0; }
-.install-card__title { font-size: 14px; font-weight: 700; }
-.install-card .btn { flex: none; border-radius: 10px; }
-.install-card__x { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: var(--ink-2); }
-.install-card__x:hover { background: rgba(255, 255, 255, 0.7); color: var(--ink); }
-
-/* Início compacto: cabe num ecrã de telemóvel sem scroll */
-.hero--compact { padding: 16px 20px 22px; }
-.hero--compact .who__hi { font-size: 12px; }
-.hero--compact .hero__chips { margin-top: 16px; }
-.hero--compact .quick { margin-top: 18px; }
-.hero--compact .quick__btn { width: 54px; height: 54px; border-radius: 14px; }
-.hero--compact .quick__item { gap: 6px; font-size: 11.5px; }
-.m-body--compact { padding-top: 18px; }
-.m-body--compact .sec + .sec { margin-top: 20px; }
-.m-body--compact .sec-head { margin-bottom: 10px; }
-.m-body--compact .sec-head h2 { font-size: 16px; }
 .tx-card--chart { padding: 14px 12px 10px; }
-.tx-card--flat .tx { padding: 11px 14px; }
-.tx-card--flat .tx__icon { width: 38px; height: 38px; }
-.install-card { margin-bottom: 18px; padding: 8px 40px 8px 10px; border-radius: 14px; }
-.install-card img { border-radius: 9px; }
-.install-card__title { flex: 1; font-size: 13.5px; }
+
+/* Início: o conteúdo ocupa o ecrã do telemóvel sem scroll, mas sem apertar o cabeçalho */
+.hero--home { position: relative; overflow: hidden; padding: 24px 20px 56px; }
+.hero--home > *:not(.hero__arc) { position: relative; }
+.hero__arc { position: absolute; width: 260px; height: 260px; right: -86px; top: -64px; color: rgba(255, 255, 255, 0.09); pointer-events: none; }
+.hero--home .hero__chips { margin-top: 22px; }
+.hero--home .quick { margin-top: 34px; gap: 14px; }
+.hero--home .quick__btn { width: 58px; height: 58px; border-radius: 16px; }
+.m-body--home { padding-top: 0; }
+.m-body--home .sec-head { margin-bottom: 12px; }
+.m-body--home .sec-head h2 { font-size: 16px; }
+
+.track {
+  position: relative; display: block; margin-top: -34px; padding: 14px;
+  background: #fff; border: 1px solid #EDEDF1; border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(11, 16, 96, 0.08);
+  transition: transform 150ms var(--ease), box-shadow 150ms var(--ease);
+}
+.track:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(11, 16, 96, 0.1); }
+.track--empty { display: flex; align-items: center; gap: 12px; }
+.track__top { display: flex; align-items: center; gap: 12px; }
+.track__top > .i:last-child, .track--empty > .i:last-child { color: #B9BBC8; flex: none; }
+.track__top .tx__icon { width: 40px; height: 40px; }
+.track__eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.track .tx__title { margin-top: 2px; }
+
+.m-body--home .sec { margin-top: 26px; }
+.legend { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.legend i { width: 8px; height: 8px; border-radius: 2px; background: var(--orange); }
+
+.verse {
+  position: relative; margin: 22px 0 0; padding: 16px 16px 16px 44px; border-radius: 14px;
+  background: var(--tint); color: var(--navy);
+}
+.verse__mark { position: absolute; left: 14px; top: 4px; font-size: 40px; line-height: 1; font-weight: 700; color: var(--orange); }
+.verse blockquote { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+.verse figcaption { margin-top: 2px; font-size: 12px; color: var(--ink-2); }

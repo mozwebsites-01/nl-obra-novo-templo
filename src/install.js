@@ -4,7 +4,6 @@
 import { esc, icon, openDialog, toast } from './ui.js';
 
 let deferredPrompt = null;
-const DISMISS_KEY = 'nl.install.dismissed';
 
 export function initInstall() {
   if ('serviceWorker' in navigator) {
@@ -30,9 +29,6 @@ export function platform() {
 
 export const isInstalled = () =>
   window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-
-export const bannerDismissed = () => localStorage.getItem(DISMISS_KEY) === '1';
-export const dismissBanner = () => localStorage.setItem(DISMISS_KEY, '1');
 
 const step = (n, html) => `<li class="steps__item"><span class="steps__n">${n}</span><div>${html}</div></li>`;
 
