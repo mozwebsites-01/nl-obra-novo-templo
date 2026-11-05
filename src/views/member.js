@@ -124,16 +124,19 @@ async function inicio(main, user) {
     <div class="m-body m-body--home">
       ${last ? trackerCard(last) : `<a class="track track--empty" href="#/m/contribuir"><span class="tx__icon">${icon('plus-circle', 20)}</span><div class="tx__main"><p class="track__eyebrow">Ainda sem contribuições</p><p class="tx__title">Registe a sua primeira contribuição</p></div>${icon('chevron-right', 18)}</a>`}
 
+      <figure class="temple">
+        <img src="assets/img/novo-templo.jpg" alt="Projeto do novo templo da Nataniel Litsure Ministries" width="1000" height="559">
+        <figcaption class="temple__cap">
+          <p class="temple__eyebrow">${esc(settings.obraNome)}</p>
+          <p class="temple__title">Juntos, construímos a casa de Deus.</p>
+          <p class="temple__verse">“Deus ama ao que dá com alegria.” · 2 Coríntios 9:7</p>
+        </figcaption>
+      </figure>
+
       <section class="sec">
         <div class="sec-head"><h2>Como foram as contribuições</h2><span class="legend"><i></i>mês atual</span></div>
         <div class="tx-card tx-card--pad tx-card--chart">${barChart(series, { height: 108, private: true })}</div>
       </section>
-
-      <figure class="verse">
-        <span class="verse__mark" aria-hidden="true">“</span>
-        <blockquote>Deus ama ao que dá com alegria.</blockquote>
-        <figcaption>2 Coríntios 9:7</figcaption>
-      </figure>
     </div>`;
 
   main.querySelectorAll('[data-notif]').forEach((b) => b.addEventListener('click', () => openNotifications(main, user)));
