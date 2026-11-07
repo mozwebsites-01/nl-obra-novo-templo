@@ -1,0 +1,13 @@
+# Ficheiros que NÃO vão para o servidor web (lista lida pelo rsync)
+.git/
+.github/
+.claude/
+.gitignore
+.deployignore
+.nojekyll
+README.md
+package.json
+server.js
+direcoes.html
+.DS_Store
+scripts/

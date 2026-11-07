@@ -1,0 +1,28 @@
+# Configuração Apache (DirectAdmin) para a app NL Obra
+
+# O manifesto da app instalável precisa deste tipo
+AddType application/manifest+json .webmanifest
+
+DirectoryIndex index.html
+
+# A app só pode ser instalada no telemóvel em HTTPS: redireciona HTTP → HTTPS
+# (ative o certificado Let's Encrypt no DirectAdmin antes de ser publicado)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+<IfModule mod_headers.c>
+  # O service worker e o HTML não ficam em cache: as atualizações chegam logo
+  <FilesMatch "^(sw\.js|index\.html|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  # Imagens e ícones podem ficar em cache uma semana
+  <FilesMatch "\.(png|jpg|jpeg|svg)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

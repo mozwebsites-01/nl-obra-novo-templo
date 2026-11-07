@@ -1,0 +1,11 @@
+#!/bin/sh
+# Push automático: cada commit na branch main segue logo para o GitHub,
+# e a GitHub Action "Publicar no servidor" envia-o para o DirectAdmin.
+branch=$(git rev-parse --abbrev-ref HEAD)
+[ "$branch" = "main" ] || exit 0
+if git push --quiet origin main 2>/dev/null; then
+  echo "↑ Enviado para o GitHub — a publicação no servidor começou."
+else
+  echo "⚠ O push automático falhou (sem rede?). Envie mais tarde com: git push" >&2
+fi
+exit 0

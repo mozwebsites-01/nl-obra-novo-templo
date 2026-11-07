@@ -65,3 +65,16 @@ do admin ou Perfil do membro) volta aos dados iniciais.
 - Autenticação real (o PIN está em texto simples no navegador — apenas para demonstração)
 - Base de dados partilhada entre dispositivos (próximo passo: Supabase)
 - Registo de despesas e etapas da obra (fora do âmbito escolhido para esta versão)
+
+## Publicação automática (GitHub → servidor DirectAdmin)
+
+1. Cada commit na `main` é enviado sozinho para o GitHub (hook `scripts/git-hooks/post-commit`;
+   ativado com `git config core.hooksPath scripts/git-hooks`).
+2. A GitHub Action `.github/workflows/deploy.yml` envia os ficheiros por SSH (rsync) para a
+   pasta pública do DirectAdmin. Não apaga nada que já exista no servidor.
+3. Ficam de fora do servidor os ficheiros listados em `.deployignore`.
+4. O `.htaccess` força HTTPS (necessário para instalar a app) e evita cache do service worker.
+
+Segredos necessários no repositório (Settings › Secrets and variables › Actions):
+`SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PATH`, `SSH_PRIVATE_KEY` (opcional: `SSH_KNOWN_HOSTS`).
+Para publicar manualmente: separador Actions › "Publicar no servidor" › Run workflow.

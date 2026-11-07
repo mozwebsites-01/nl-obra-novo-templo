@@ -1,0 +1,80 @@
+# Publica o site no servidor DirectAdmin por SSH sempre que há um push para main.
+#
+# Segredos do repositório (Settings › Secrets and variables › Actions):
+#   SSH_HOST         servidor (ex.: server.dominio.com ou IP)
+#   SSH_PORT         porta SSH (normalmente 22)
+#   SSH_USER         utilizador DirectAdmin
+#   SSH_PATH         pasta pública, ex.: /home/USER/domains/DOMINIO/public_html
+#   SSH_PRIVATE_KEY  chave privada só para publicação (a pública fica no DirectAdmin)
+#   SSH_KNOWN_HOSTS  (opcional) impressão digital do servidor; sem ela usa ssh-keyscan
+name: Publicar no servidor
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publicar-servidor
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar configuração
+        id: cfg
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PATH: ${{ secrets.SSH_PATH }}
+        run: |
+          if [ -z "$SSH_HOST" ] || [ -z "$SSH_PATH" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Servidor ainda não configurado (faltam os segredos SSH_*). Nada foi publicado."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preparar ligação SSH
+        if: steps.cfg.outputs.configured == 'true'
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+
+      - name: Enviar ficheiros (rsync)
+        if: steps.cfg.outputs.configured == 'true'
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PATH: ${{ secrets.SSH_PATH }}
+        # Sem --delete: nunca apaga ficheiros que já existam no servidor (ex.: .well-known, cgi-bin).
+        run: |
+          rsync -rltvz --checksum --exclude-from=.deployignore \
+            -e "ssh -i ~/.ssh/deploy_key -p $SSH_PORT -o BatchMode=yes" \
+            ./ "$SSH_USER@$SSH_HOST:${SSH_PATH%/}/"
+
+      - name: Confirmar publicação
+        if: steps.cfg.outputs.configured == 'true'
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PATH: ${{ secrets.SSH_PATH }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" -o BatchMode=yes "$SSH_USER@$SSH_HOST" \
+            "ls -la '${SSH_PATH%/}/index.html' '${SSH_PATH%/}/sw.js'"
+          echo "Publicado: commit ${GITHUB_SHA::7}"
