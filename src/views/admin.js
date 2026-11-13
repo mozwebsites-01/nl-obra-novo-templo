@@ -222,8 +222,10 @@ async function recordDialog(ctx, preMemberId = '') {
     <form class="sheet__body rec-form" novalidate>
       <div class="field">
         <div class="rec-form__label"><label for="rec-m">Membro</label><button type="button" class="link small" data-new-member>${icon('user-plus', 14)} Novo membro</button></div>
-        <input class="input" id="rec-m" list="rec-members" autocomplete="off" placeholder="Escreva o nome ou o telemóvel" value="${pre ? esc(label(pre)) : ''}">
-        <datalist id="rec-members">${members.map((m) => `<option value="${esc(label(m))}"></option>`).join('')}</datalist>
+        <div class="combo">
+          <input class="input" id="rec-m" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="rec-list" autocomplete="off" spellcheck="false" placeholder="Escreva o nome ou o telemóvel" value="${pre ? esc(label(pre)) : ''}">
+          <ul class="combo__list" id="rec-list" role="listbox" hidden></ul>
+        </div>
       </div>
       <div class="field">
         <label for="rec-v">Valor recebido</label>
@@ -259,11 +261,50 @@ async function recordDialog(ctx, preMemberId = '') {
   };
   form.querySelectorAll('[name=metodo]').forEach((r) => r.addEventListener('change', sync));
   memberInput.addEventListener('input', sync);
+
+  // Lista de sugestões própria, alinhada ao campo (a lista nativa do navegador
+  // aparece desalinhada dentro do diálogo). Procura por nome ou por telemóvel.
+  const list = $('#rec-list');
+  let matches = [], active = -1;
+  const norm = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const closeList = () => { list.hidden = true; memberInput.setAttribute('aria-expanded', 'false'); active = -1; };
+  const paintList = () => {
+    list.innerHTML = matches.length
+      ? matches.map((m, i) => `<li role="option" id="rec-opt-${i}" data-i="${i}" aria-selected="${i === active}" class="${i === active ? 'is-active' : ''}"><span>${esc(m.nome)}</span><span class="num">${esc(phoneFmt(m.telefone))}</span></li>`).join('')
+      : '<li class="combo__empty">Nenhum membro encontrado. Use "Novo membro" para o adicionar.</li>';
+    list.hidden = false;
+    memberInput.setAttribute('aria-expanded', 'true');
+    memberInput.setAttribute('aria-activedescendant', active >= 0 ? `rec-opt-${active}` : '');
+    list.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
+  };
+  const search = () => {
+    const q = norm(memberInput.value.trim());
+    const digits = q.replace(/\D/g, '');
+    if (!q || current()) return closeList();
+    matches = members.filter((m) => norm(m.nome).includes(q) || (digits.length >= 2 && m.telefone.includes(digits))).slice(0, 8);
+    active = matches.length ? 0 : -1;
+    paintList();
+  };
+  const choose = (m) => { memberInput.value = label(m); closeList(); sync(); $('#rec-v').focus(); };
+  memberInput.addEventListener('input', search);
+  memberInput.addEventListener('focus', search);
+  memberInput.addEventListener('blur', () => setTimeout(closeList, 120));
+  memberInput.addEventListener('keydown', (e) => {
+    if (list.hidden) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (matches.length) { active = (active + (e.key === 'ArrowDown' ? 1 : matches.length - 1)) % matches.length; paintList(); }
+    } else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); choose(matches[active]); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeList(); }
+  });
+  list.addEventListener('mousedown', (e) => {
+    const li = e.target.closest('[data-i]');
+    if (li) { e.preventDefault(); choose(matches[Number(li.dataset.i)]); }
+  });
   d.querySelectorAll('[data-v]').forEach((b) => b.addEventListener('click', () => { $('#rec-v').value = b.dataset.v; $('#rec-v').focus(); }));
   $('[data-new-member]').addEventListener('click', () => addMemberDialog((m) => {
     members.push(m);
     byLabel.set(label(m), m);
-    $('#rec-members').insertAdjacentHTML('beforeend', `<option value="${esc(label(m))}"></option>`);
     memberInput.value = label(m);
     sync();
   }));

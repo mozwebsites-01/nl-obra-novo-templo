@@ -524,3 +524,19 @@ dialog.sheet[open] { display: flex; }
 .split__val p:first-child { font-weight: 600; }
 @media (max-width: 760px) { .saldo__acct { display: none; } }
 @media (max-width: 760px) { .saldo [data-record-here] { display: none; } }
+
+/* Lista de sugestões de membros (registar contribuição) */
+.combo { position: relative; }
+.combo__list {
+  position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; right: 0;
+  max-height: 264px; overflow-y: auto; margin: 0; padding: 4px; list-style: none;
+  background: #fff; border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow-pop);
+}
+.combo__list li[data-i] {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 6px; font-size: 14px; cursor: pointer;
+}
+.combo__list li[data-i] span:last-child { flex: none; font-size: 13px; color: var(--ink-2); }
+.combo__list li.is-active, .combo__list li[data-i]:hover { background: var(--tint); }
+.combo__list li.is-active span:first-child { color: var(--navy); font-weight: 600; }
+.combo__empty { padding: 12px; font-size: 13px; color: var(--ink-2); }
