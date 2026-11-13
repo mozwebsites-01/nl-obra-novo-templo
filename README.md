@@ -34,7 +34,7 @@ Depois abra http://localhost:4173. Não há dependências para instalar (Node 18
   todos os recebimentos e relatórios de todos (ou de um gestor). Cria, suspende e reativa
   gestores, gere membros e a meta da obra.
 - **Gestores** registam membros, lançam cada valor que recebem (fica logo confirmado e gera um
-  recibo de receção para imprimir) e baixam relatórios diários, semanais e mensais em PDF.
+  recibo de receção em PDF) e baixam relatórios diários, semanais e mensais em PDF.
   Cada gestor vê **apenas os seus recebimentos e o seu saldo acumulado**.
 - Relatórios: Relatórios › Diário / Semanal / Mensal › Baixar PDF (ou Exportar CSV).
 - **Comprovativo ao membro**: depois de registar (ou ao abrir qualquer recibo), o bloco

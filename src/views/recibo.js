@@ -16,8 +16,7 @@ export function renderPublicReceipt(root, encoded) {
         <p class="pub__hello">Olá, ${esc(firstName(data.n))}. A sua contribuição foi recebida e registada.</p>
         <div class="card pub__card">${receipt(c, { member, reviewer, settings })}</div>
         <div class="pub__actions">
-          <button type="button" class="btn btn-primary btn-block" data-pdf>${icon('download', 18)} Descarregar recibo em PDF</button>
-          <button type="button" class="btn btn-secondary btn-block" data-print>${icon('printer', 18)} Imprimir</button>
+          <button type="button" class="btn btn-primary btn-block" data-pdf>${icon('download', 18)} Baixar recibo em PDF</button>
         </div>
         <p class="pub__thanks">Obrigado pela sua contribuição para a ${esc(data.o)}. Que Deus abençoe a sua generosidade.</p>`;
     })()
@@ -30,7 +29,6 @@ export function renderPublicReceipt(root, encoded) {
       <p class="pub__foot">Comprovativo emitido por Nataniel Litsure Ministries</p>
     </main>`;
 
-  root.querySelector('[data-print]')?.addEventListener('click', () => window.print());
   root.querySelector('[data-pdf]')?.addEventListener('click', async (e) => {
     const b = e.currentTarget; b.disabled = true;
     try { await downloadPdf(data); } catch (ex) { toast(ex.message); }

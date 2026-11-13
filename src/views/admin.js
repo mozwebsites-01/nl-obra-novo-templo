@@ -144,11 +144,13 @@ export async function renderAdmin(root, page, user, param) {
 }
 
 // Recibo --------------------------------------------------------------------
-// Imprime só o diálogo aberto (o recibo), sem o resto da aplicação
-function printDialog() {
-  document.body.classList.add('print-dialog');
-  window.addEventListener('afterprint', () => document.body.classList.remove('print-dialog'), { once: true });
-  window.print();
+// Botão "Baixar PDF" do recibo
+function bindPdf(d, data) {
+  d.querySelector('[data-pdf]').addEventListener('click', async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    try { await downloadPdf(data); toast(`Recibo ${data.r} descarregado em PDF`); } catch (ex) { toast(ex.message); }
+    b.disabled = false;
+  });
 }
 
 // Enviar o comprovativo ao membro: WhatsApp com a mensagem pronta, PDF partilhado ou descarregado
@@ -166,7 +168,6 @@ function deliverBox(c, data) {
     <div class="deliver__actions">
       <a class="btn btn-primary" href="${esc(whatsappLink(data))}" target="_blank" rel="noopener" data-wa>${icon('send', 17)} ${c.notificadoEm ? 'Reenviar' : 'Enviar'} por WhatsApp</a>
       ${canSharePdf() ? `<button type="button" class="btn btn-secondary" data-share>${icon('share', 17)} Partilhar PDF</button>` : ''}
-      <button type="button" class="btn btn-secondary" data-pdf>${icon('download', 17)} Descarregar PDF</button>
     </div>
   </section>`;
 }
@@ -180,11 +181,6 @@ function wireDeliver(d, c, data, user) {
     wireDeliver(d, { ...c, notificadoEm: new Date().toISOString(), notificadoCanal: canal }, data, user);
   };
   d.querySelector('[data-wa]')?.addEventListener('click', () => { setTimeout(() => mark('whatsapp'), 300); toast('A abrir o WhatsApp com a mensagem pronta'); });
-  d.querySelector('[data-pdf]')?.addEventListener('click', async (e) => {
-    const b = e.currentTarget; b.disabled = true;
-    try { await downloadPdf(data); toast(`PDF ${data.r} descarregado`); } catch (ex) { toast(ex.message); }
-    b.disabled = false;
-  });
   d.querySelector('[data-share]')?.addEventListener('click', async (e) => {
     const b = e.currentTarget; b.disabled = true;
     try { await sharePdf(data); await mark('pdf'); } catch (ex) { if (ex.name !== 'AbortError') toast(ex.message); }
@@ -202,8 +198,8 @@ async function receiptDialog(c, people, user) {
   const d = openDialog(`
     <header class="sheet__head"><h2>Recibo ${esc(c.ref)}</h2><button class="icon-btn" data-close aria-label="Fechar">${icon('x')}</button></header>
     <div class="sheet__scroll">${canSend ? deliverBox(c, data) : ''}${receipt(c, { member, reviewer, settings })}</div>
-    <div class="sheet__foot"><button type="button" class="btn btn-secondary" data-close>Fechar</button><button type="button" class="btn btn-primary" data-print>${icon('printer', 18)} Imprimir recibo</button></div>`);
-  d.querySelector('[data-print]').addEventListener('click', printDialog);
+    <div class="sheet__foot"><button type="button" class="btn btn-secondary" data-close>Fechar</button><button type="button" class="btn btn-primary" data-pdf>${icon('download', 18)} Baixar PDF</button></div>`);
+  bindPdf(d, data);
   if (canSend) wireDeliver(d, c, data, user);
   d.addEventListener('close', () => { if (d.dataset.changed) navigate(location.hash); });
 }
@@ -338,8 +334,8 @@ async function recordDialog(ctx, preMemberId = '') {
     d.innerHTML = `
       <header class="sheet__head"><h2>Contribuição registada</h2><button class="icon-btn" data-close aria-label="Fechar">${icon('x')}</button></header>
       <div class="sheet__scroll">${deliverBox(c, rd)}${receipt(c, { member: m, reviewer: ctx.user, settings })}</div>
-      <div class="sheet__foot"><button type="button" class="btn btn-secondary" data-again>Registar outra</button><button type="button" class="btn btn-primary" data-print>${icon('printer', 18)} Imprimir recibo</button></div>`;
-    d.querySelector('[data-print]').addEventListener('click', printDialog);
+      <div class="sheet__foot"><button type="button" class="btn btn-secondary" data-again>Registar outra</button><button type="button" class="btn btn-primary" data-pdf>${icon('download', 18)} Baixar PDF</button></div>`;
+    bindPdf(d, rd);
     wireDeliver(d, c, rd, ctx.user);
     d.querySelector('[data-again]').addEventListener('click', () => { d.close(); recordDialog(ctx); });
     d.addEventListener('close', () => ctx.refresh(), { once: true });
