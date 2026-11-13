@@ -52,15 +52,19 @@ const sum = (list) => list.reduce((s, c) => s + c.valor, 0);
 const byRecent = (a, b) => b.data.localeCompare(a.data) || b.declaradoEm.localeCompare(a.declaradoEm);
 
 // Sessão --------------------------------------------------------------------
-// Guardada como { id, at }: `at` é o instante da última atividade.
-let expirou = false;
+// Sessão guardada no sessionStorage como { id, at } (`at` = última atividade):
+// fechar o separador ou a app termina a sessão, por isso cada visita nova
+// pede o PIN. Só o número da última conta fica lembrado (nunca o PIN).
+const LAST = 'nl.last.v1';
+const EXIT = 'nl.exit';
+localStorage.removeItem(SESSION); // sessões antigas, guardadas antes desta mudança
 
 function readSession() {
   try {
-    const s = JSON.parse(localStorage.getItem(SESSION));
+    const s = JSON.parse(sessionStorage.getItem(SESSION));
     return s && s.id ? s : null;
   } catch {
-    return null; // formato antigo (só o id): trata-se como sessão inválida
+    return null;
   }
 }
 
@@ -69,23 +73,32 @@ export const hasSession = () => !!readSession();
 // Renova o prazo. Chamada a cada sinal de atividade do utilizador.
 export function touchSession() {
   const s = readSession();
-  if (s) localStorage.setItem(SESSION, JSON.stringify({ id: s.id, at: Date.now() }));
+  if (s) sessionStorage.setItem(SESSION, JSON.stringify({ id: s.id, at: Date.now() }));
 }
 
-// True uma única vez, logo a seguir a uma sessão ter caducado, para a vista
-// de entrada poder avisar porque é que estão de volta ao login.
-export function tookExpired() {
-  const v = expirou;
-  expirou = false;
-  return v;
+// Porque é que a pessoa voltou à entrada ('saiu' | 'inatividade'); lido uma vez.
+export function takeExitReason() {
+  const r = sessionStorage.getItem(EXIT);
+  sessionStorage.removeItem(EXIT);
+  return r;
+}
+
+// Última conta usada neste aparelho: a entrada mostra o nome e pede só o PIN.
+export async function lastAccount() {
+  const tel = localStorage.getItem(LAST);
+  const m = tel && db.members.find((x) => x.telefone === tel);
+  return m && canSignIn(m) ? m : null;
+}
+
+export function forgetAccount() {
+  localStorage.removeItem(LAST);
 }
 
 export async function getSessionUser() {
   const s = readSession();
   if (!s) return null;
   if (Date.now() - (s.at || 0) > SESSION_TTL) {
-    expirou = true;
-    await signOut();
+    await signOut('inatividade');
     return null;
   }
   const m = db.members.find((x) => x.id === s.id);
@@ -107,15 +120,40 @@ const isActive = (m) => !m.estado || m.estado === 'ativo';
 export const STAFF = ['admin', 'gestor'];
 const canSignIn = (m) => STAFF.includes(m.role) && isActive(m);
 
-export async function signIn(telefone, pin) {
-  const m = await findMemberByPhone(telefone);
-  if (!m || !canSignIn(m) || m.pin !== pin) return null;
-  localStorage.setItem(SESSION, JSON.stringify({ id: m.id, at: Date.now() }));
-  return m;
+// Tentativas falhadas por número: ao fim de 5, a entrada fica bloqueada 60 s.
+const ATTEMPTS = 'nl.attempts.v1';
+export const MAX_ATTEMPTS = 5;
+const LOCK_MS = 60 * 1000;
+const readAttempts = () => { try { return JSON.parse(localStorage.getItem(ATTEMPTS)) || {}; } catch { return {}; } };
+
+// Segundos que faltam até poder tentar outra vez (0 = desbloqueado)
+export function lockedFor(telefone) {
+  const a = readAttempts()[telefone];
+  return a?.until ? Math.max(0, Math.ceil((a.until - Date.now()) / 1000)) : 0;
 }
 
-export async function signOut() {
-  localStorage.removeItem(SESSION);
+// Devolve { user } quando entra, ou { left } / { locked } quando falha.
+export async function signIn(telefone, pin) {
+  if (lockedFor(telefone)) return { locked: lockedFor(telefone) };
+  const m = await findMemberByPhone(telefone);
+  const all = readAttempts();
+  if (!m || !canSignIn(m) || m.pin !== pin) {
+    const n = (all[telefone]?.n || 0) + 1; // um bloqueio já cumprido guarda n = 0
+    all[telefone] = n >= MAX_ATTEMPTS ? { n: 0, until: Date.now() + LOCK_MS } : { n };
+    localStorage.setItem(ATTEMPTS, JSON.stringify(all));
+    return n >= MAX_ATTEMPTS ? { locked: LOCK_MS / 1000 } : { left: MAX_ATTEMPTS - n };
+  }
+  delete all[telefone];
+  localStorage.setItem(ATTEMPTS, JSON.stringify(all));
+  sessionStorage.setItem(SESSION, JSON.stringify({ id: m.id, at: Date.now() }));
+  localStorage.setItem(LAST, m.telefone);
+  return { user: m };
+}
+
+export async function signOut(reason) {
+  sessionStorage.removeItem(SESSION);
+  for (const k of ['nl.q', 'nl.gestor']) sessionStorage.removeItem(k);
+  if (reason) sessionStorage.setItem(EXIT, reason);
 }
 
 export async function resetDemo() {

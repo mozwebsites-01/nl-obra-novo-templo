@@ -1,20 +1,28 @@
 import * as store from '../store.js';
 import { DEMO } from '../seed.js';
-import { esc, icon, navigate } from '../ui.js';
-import { isValidPhone, phoneFmt } from '../format.js';
+import { esc, icon, avatar, navigate } from '../ui.js';
+import { isValidPhone, phoneFmt, firstName } from '../format.js';
 
 export async function renderLogin(root) {
   document.body.className = 'is-login';
+  document.title = 'Entrar · Nataniel Litsure Ministries';
   let telefone = '';
   let pin = '';
   let busy = false;
   const settings = await store.getSettings();
+  const reason = store.takeExitReason();
+  const NOTICE = {
+    saiu: ['check', 'Sessão terminada com segurança.'],
+    inatividade: ['history', 'A sessão terminou por inatividade. Entre novamente para continuar.'],
+  };
+  let lockTimer;
 
   root.innerHTML = `
     <main class="login">
       <section class="login__main">
         <div class="login__top"><img src="assets/brand/logo-lockup-navy.svg" alt="Nataniel Litsure Ministries" width="100" height="44"><span>${esc(settings.obraNome)}</span></div>
         <div class="login__inner">
+          ${NOTICE[reason] ? `<p class="login__notice" role="status">${icon(NOTICE[reason][0], 16)}<span>${NOTICE[reason][1]}</span></p>` : ''}
           <div aria-live="polite" data-step></div>
           <details class="login__demo">
             <summary>Contas de demonstração</summary>
@@ -43,6 +51,7 @@ export async function renderLogin(root) {
 
   function phoneStep(error = '') {
     pin = '';
+    clearInterval(lockTimer);
     step.innerHTML = `
       <h1 class="login__title">Olá de novo</h1>
       <p class="login__lead">Entre com o número de telemóvel da sua conta de gestão.</p>
@@ -142,11 +151,19 @@ export async function renderLogin(root) {
     step.querySelector('[data-back]').addEventListener('click', () => phoneStep());
   }
 
-  function pinStep() {
+  // Com `known`, é a última conta usada neste aparelho: mostra-se o nome e pede-se só o PIN.
+  async function pinStep(known = false) {
+    pin = '';
+    const m = await store.findMemberByPhone(telefone);
+    const head = known && m
+      ? `<div class="login__who">${avatar(m, 56)}<div><h1 class="login__title">Olá, ${esc(firstName(m.nome))}</h1>
+          <p class="login__lead">${esc(m.role === 'admin' ? 'Administração' : m.cargo || 'Gestor')} · +258 ${esc(phoneFmt(telefone))}</p></div></div>
+         <p class="login__lead login__lead--pin">Introduza o seu PIN de 4 dígitos.</p>`
+      : `<button type="button" class="pin-back" data-back>${icon('chevron-left', 16)} +258 ${esc(phoneFmt(telefone))}</button>
+         <h1 class="login__title">Introduza o seu PIN</h1>
+         <p class="login__lead">Quatro dígitos.</p>`;
     step.innerHTML = `
-      <button type="button" class="pin-back" data-back>${icon('chevron-left', 16)} +258 ${esc(phoneFmt(telefone))}</button>
-      <h1 class="login__title">Introduza o seu PIN</h1>
-      <p class="login__lead">Quatro dígitos.</p>
+      ${head}
       <div class="pin-dots" aria-label="PIN" data-dots>${'<span class="pin-dot"></span>'.repeat(4)}</div>
       <p class="pin-msg" data-msg></p>
       <div class="keypad">
@@ -154,8 +171,11 @@ export async function renderLogin(root) {
         <button type="button" class="key" disabled aria-hidden="true"></button>
         <button type="button" class="key" data-k="0">0</button>
         <button type="button" class="key key--fn" data-k="del" aria-label="Apagar">${icon('backspace', 22)}</button>
-      </div>`;
-    step.querySelector('[data-back]').addEventListener('click', () => phoneStep());
+      </div>
+      ${known && m ? `<button type="button" class="login__switch" data-switch>Não é ${esc(firstName(m.nome))}? Entrar com outro número</button>` : ''}`;
+    step.querySelector('[data-back]')?.addEventListener('click', () => phoneStep());
+    step.querySelector('[data-switch]')?.addEventListener('click', () => { store.forgetAccount(); telefone = ''; phoneStep(); });
+    if (store.lockedFor(telefone)) lockOut();
     step.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => press(b.dataset.k)));
     paint();
   }
@@ -175,20 +195,43 @@ export async function renderLogin(root) {
     paint();
     if (pin.length === 4) {
       busy = true;
-      const user = await store.signIn(telefone, pin);
+      const res = await store.signIn(telefone, pin);
       await new Promise((r) => setTimeout(r, 180));
       busy = false;
-      if (user) return navigate(user.role === 'admin' ? '#/a/painel' : '#/a/inicio');
+      if (res.user) { clearInterval(lockTimer); return navigate(res.user.role === 'admin' ? '#/a/painel' : '#/a/inicio'); }
       pin = '';
       paint();
       dots.classList.add('is-error');
-      step.querySelector('[data-msg]').textContent = 'PIN incorreto. Tente novamente.';
+      if (res.locked) return lockOut();
+      step.querySelector('[data-msg]').textContent = res.left === 1
+        ? 'PIN incorreto. Resta 1 tentativa antes de a entrada ficar bloqueada.'
+        : `PIN incorreto. Restam ${res.left} tentativas.`;
     }
+  }
+
+  // Demasiadas tentativas: teclado desativado com contagem decrescente
+  function lockOut() {
+    const msg = step.querySelector('[data-msg]');
+    const keys = step.querySelectorAll('.key');
+    const paintLock = () => {
+      const left = store.lockedFor(telefone);
+      if (!left) {
+        clearInterval(lockTimer);
+        keys.forEach((k) => { if (k.dataset.k) k.disabled = false; });
+        msg.textContent = '';
+        return;
+      }
+      keys.forEach((k) => { k.disabled = true; });
+      msg.textContent = `Demasiadas tentativas. Tente novamente dentro de ${left} s.`;
+    };
+    clearInterval(lockTimer);
+    paintLock();
+    lockTimer = setInterval(paintLock, 1000);
   }
 
   const onKey = (e) => {
     if (!document.body.classList.contains('is-login')) return document.removeEventListener('keydown', onKey);
-    if (!step.querySelector('[data-dots]')) return;
+    if (!step.querySelector('[data-dots]') || store.lockedFor(telefone)) return;
     if (/^\d$/.test(e.key)) press(e.key);
     else if (e.key === 'Backspace') press('del');
   };
@@ -198,9 +241,10 @@ export async function renderLogin(root) {
     b.addEventListener('click', () => {
       telefone = DEMO[b.dataset.demo].telefone;
       root.querySelector('.login__demo').open = false;
-      pinStep();
+      pinStep(true);
     }),
   );
 
-  phoneStep();
+  const last = await store.lastAccount();
+  if (last) { telefone = last.telefone; pinStep(true); } else phoneStep();
 }

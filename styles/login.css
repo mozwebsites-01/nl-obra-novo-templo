@@ -96,3 +96,19 @@
   .login__foot { text-align: center; }
 }
 .login__demo-item--wide { grid-column: 1 / -1; }
+
+/* Aviso de saída, conta lembrada e troca de conta */
+.login__notice {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 28px; padding: 12px 14px; border-radius: 12px;
+  background: var(--tint); color: var(--navy); font-size: 13px; font-weight: 500; line-height: 1.4;
+}
+.login__notice .i { flex: none; }
+.login__who { display: flex; align-items: center; gap: 16px; }
+.login__who .login__lead { margin-top: 2px; }
+.login__lead--pin { margin-top: 22px; }
+.login__switch {
+  display: block; width: 100%; margin-top: 22px; padding: 10px; text-align: center;
+  font-size: 13px; font-weight: 600; color: var(--navy); border-radius: 10px;
+}
+.login__switch:hover { background: var(--tint); }
+.key:disabled { opacity: 0.4; cursor: not-allowed; }

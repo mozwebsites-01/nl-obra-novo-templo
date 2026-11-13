@@ -94,7 +94,7 @@ export async function renderAdmin(root, page, user, param) {
           <div class="a-bar__end">
             ${isAdmin(user) ? '' : `<button type="button" class="btn btn-primary btn-sm a-bar__cta" data-record>${icon('plus-circle', 16)} Registar contribuição</button><span class="a-bar__sep" aria-hidden="true"></span>`}
             <div class="a-me">${avatar(user, 34)}<div><p>${esc(user.nome)}</p><p class="a-me__role">${esc(roleLabel(user))}</p></div></div>
-            <button type="button" class="a-icon" data-act="logout" aria-label="Terminar sessão" title="Terminar sessão">${icon('log-out', 20)}</button>
+            <button type="button" class="a-out" data-act="logout" aria-label="Terminar sessão" title="Terminar sessão">${icon('log-out', 18)}<span>Sair</span></button>
           </div>
         </div>
         <header class="a-top"><div><p class="a-top__eyebrow" data-eyebrow></p><h1 data-title></h1></div><div class="a-top__actions" data-actions></div></header>
@@ -116,7 +116,12 @@ export async function renderAdmin(root, page, user, param) {
     refresh: () => navigate(location.hash),
   };
 
-  root.querySelector('[data-act=logout]').addEventListener('click', async () => { await store.signOut(); navigate('#/entrar'); });
+  root.querySelector('[data-act=logout]').addEventListener('click', async () => {
+    const ok = await confirmDialog({ title: 'Terminar sessão?', text: 'Para voltar a entrar terá de introduzir o seu PIN.', confirmLabel: 'Terminar sessão' });
+    if (!ok) return;
+    await store.signOut('saiu');
+    navigate('#/entrar');
+  });
   root.querySelector('[data-record]')?.addEventListener('click', () => recordDialog(ctx));
   root.querySelector('[data-search]').addEventListener('submit', (e) => {
     e.preventDefault();

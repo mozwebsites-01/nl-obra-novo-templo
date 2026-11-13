@@ -37,6 +37,10 @@ Depois abra http://localhost:4173. Não há dependências para instalar (Node 18
   recibo de receção para imprimir) e imprimem relatórios diários, semanais e mensais.
   Cada gestor vê **apenas os seus recebimentos e o seu saldo acumulado**.
 - Relatórios: Relatórios › Diário / Semanal / Mensal › Imprimir (ou Exportar CSV).
+- **Entrada e saída**: a sessão fica só no separador aberto — fechar o separador ou a app,
+  ou abrir o endereço noutra vez, pede sempre o PIN. O aparelho lembra apenas o número da última
+  conta ("Olá, Rute" + PIN). Após 3 minutos sem atividade a sessão termina (aviso 30 s antes).
+  5 PIN errados bloqueiam a entrada durante 60 s. "Sair" pede confirmação.
 
 Os dados ficam no `localStorage` do navegador. "Repor demonstração" (barra lateral
 do admin ou Perfil do membro) volta aos dados iniciais.

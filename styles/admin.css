@@ -447,3 +447,19 @@ dialog.sheet[open] { display: flex; }
   .saldo__actions .btn { flex: 1; }
   .gestor-grid { grid-template-columns: 1fr; }
 }
+
+/* Terminar sessão */
+.a-out {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 12px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 600;
+  transition: border-color var(--t), background var(--t), color var(--t);
+}
+.a-out:hover { border-color: #E5C3C3; background: #FDF6F6; color: #A12C2C; }
+@media (max-width: 760px) { .a-out { width: 40px; padding: 0; justify-content: center; } .a-out span { display: none; } }
+
+/* Aviso de sessão a terminar */
+.sheet--sm { max-width: 400px; }
+.idle-warn { text-align: center; display: grid; justify-items: center; gap: 8px; }
+.idle-warn h2 { font-size: 18px; }
+.idle-warn__icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--tint); color: var(--navy); margin-bottom: 4px; }
+.idle-warn__count { font-size: 32px; font-weight: 700; color: var(--navy); letter-spacing: -0.02em; margin-top: 4px; }
