@@ -1,34 +1,47 @@
-/* Entrada — ecrã dividido: formulário em branco + painel da marca em azul-marinho.
-   No telemóvel, o painel da marca passa a cabeçalho com cantos inferiores arredondados. */
-.login { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); background: #fff; }
+/* Entrada — a fotografia do novo templo ocupa o ecrã; o acesso é feito por um
+   cartão em forma de arco, como a entrada do templo, com o símbolo NL no fecho do arco. */
+.login { position: relative; min-height: 100dvh; overflow: hidden; background: var(--navy-700); color: #fff;
+  display: grid; grid-template-columns: minmax(0, 1fr) 460px; grid-template-rows: auto 1fr; column-gap: 48px; padding: 32px 56px 0; }
+.login__photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 38% 45%; animation: drift 24s var(--ease) both; }
+.login__veil { position: absolute; inset: 0; background: rgba(7, 11, 69, 0.58); }
+@keyframes drift { from { transform: scale(1.08); } to { transform: scale(1); } }
 
-.login__main { display: flex; flex-direction: column; padding: 32px 48px; }
-.login__top { display: flex; justify-content: space-between; align-items: center; }
-.login__top span { font-size: 12.5px; font-weight: 500; color: var(--ink-2); }
-.login__top span:first-child { color: var(--navy); font-weight: 600; }
-.login__inner { width: 100%; max-width: 380px; margin: auto; padding: 48px 0; }
-.login__title { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+.login__bar { position: relative; grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; }
+.login__bar img { width: 150px; height: auto; }
+.login__badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 999px; font-size: 12.5px; font-weight: 500; color: rgba(255, 255, 255, 0.86); }
+
+.login__caption { position: relative; align-self: end; max-width: 460px; padding-bottom: 56px; }
+.login__caption-k { display: inline-block; font-size: 12.5px; font-weight: 600; color: var(--orange); padding-bottom: 8px; border-bottom: 2px solid var(--orange); }
+.login__caption h2 { margin-top: 16px; font-size: 44px; line-height: 1.05; font-weight: 700; letter-spacing: -0.03em; }
+.login__caption p:last-child { margin-top: 14px; font-size: 15px; line-height: 1.55; color: rgba(255, 255, 255, 0.78); max-width: 380px; }
+
+/* O arco */
+.login__portal { position: relative; align-self: end; display: flex; }
+.login__arch {
+  position: relative; width: 100%; min-height: calc(100dvh - 128px); margin-top: 28px;
+  display: flex; flex-direction: column; padding: 96px 44px 28px;
+  background: #fff; color: var(--ink); border-radius: 230px 230px 0 0;
+  box-shadow: 0 -24px 60px rgba(7, 11, 69, 0.35);
+  animation: rise-up 700ms var(--ease) both;
+}
+.login__arch::before { content: ""; position: absolute; inset: 12px 12px 0; border: 1px solid var(--line); border-bottom: 0; border-radius: 218px 218px 0 0; pointer-events: none; }
+@keyframes rise-up { from { transform: translateY(40px); opacity: 0; } }
+.login__keystone { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.2), 0 6px 18px rgba(7, 11, 69, 0.25); }
+.login__keystone img { width: 34px; height: auto; }
+.login__inner { position: relative; width: 100%; max-width: 360px; margin: auto; padding: 8px 0 24px; }
+.login__title { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
 .login__lead { color: var(--ink-2); font-size: 14px; margin-top: 8px; }
-.login__form { margin-top: 32px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
-.login__form .btn { height: 50px; border-radius: 8px; font-size: 15px; }
-.login__foot { font-size: 12px; color: var(--ink-2); }
-.login__alt { margin-top: 20px; text-align: center; font-size: 14px; color: var(--ink-2); }
+.login__form { margin-top: 28px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.login__form .btn { height: 50px; border-radius: 999px; font-size: 15px; }
+.login__foot { position: relative; margin-top: auto; padding-top: 24px; text-align: center; font-size: 11.5px; color: var(--ink-2); }
+.login__alt { margin-top: 18px; text-align: center; font-size: 13px; color: var(--ink-2); }
 .login__alt .link { font-size: 14px; }
 .login__input { height: 50px; border-radius: 8px; background: #fff; }
 .login__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .login__status { text-align: center; }
 .login__status-icon { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 50%; background: var(--tint); color: var(--navy); }
 
-/* Painel da marca: fotografia do novo templo com uma placa institucional */
-.login__brand { position: relative; overflow: hidden; background: var(--navy-700); color: #fff; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: 40px; }
-.login__photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }
-.login__brand::before { content: ""; position: absolute; inset: 0; z-index: 1; background: rgba(7, 11, 69, 0.28); }
-.login__brand > *:not(.login__photo) { position: relative; z-index: 2; }
-.login__brand-logo { width: 196px; height: auto; }
-.login__plate { max-width: 420px; padding: 26px 28px 28px; background: var(--navy-700); border-top: 3px solid var(--orange); }
-.login__plate-k { font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.62); }
-.login__plate h2 { margin-top: 6px; font-size: 26px; font-weight: 600; line-height: 1.2; letter-spacing: -0.015em; }
-.login__plate p:last-child { margin-top: 10px; font-size: 14px; line-height: 1.55; color: rgba(255, 255, 255, 0.72); }
+@media (prefers-reduced-motion: reduce) { .login__photo, .login__arch { animation: none; } }
 
 .phone {
   display: flex; align-items: stretch; height: 52px;
@@ -79,17 +92,21 @@
 .login__demo-item b { font-size: 13px; color: var(--ink); font-weight: 600; }
 .login__demo-item span { font-size: 12px; font-variant-numeric: tabular-nums; }
 
-@media (max-width: 900px) {
-  .login { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .login__brand { order: -1; min-height: 200px; padding: 28px 24px; align-items: center; justify-content: center; }
-  .login__brand::before { background: rgba(7, 11, 69, 0.62); }
-  .login__brand-logo { width: 176px; }
-  .login__plate { display: none; }
-  .login__main { padding: 8px 24px 24px; }
-  .login__top { display: none; }
-  .login__inner { margin: 0 auto; padding: 32px 0 24px; }
-  .login__title { font-size: 24px; }
-  .login__foot { text-align: center; }
+@media (max-width: 960px) {
+  .login { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; padding: 20px 0 0; }
+  .login__photo { height: 46dvh; object-position: 50% 40%; }
+  .login__veil { height: 46dvh; background: rgba(7, 11, 69, 0.45); }
+  .login__bar { padding: 0 20px; }
+  .login__bar img { width: 120px; }
+  .login__badge { padding: 6px 10px; font-size: 11.5px; }
+  .login__caption { padding: 28px 24px 0; }
+  .login__caption h2 { font-size: 30px; }
+  .login__caption p:last-child { display: none; }
+  .login__arch { min-height: 0; margin-top: 44px; padding: 76px 24px 20px; border-radius: 50vw 50vw 0 0; }
+  .login__arch::before { border-radius: 50vw 50vw 0 0; inset: 10px 10px 0; }
+  .login__inner { max-width: 400px; }
+}
+@media (max-width: 960px) and (min-width: 600px) { .login__arch { margin-left: auto; margin-right: auto; max-width: 560px; } .login__portal { justify-content: center; } }
 }
 .login__demo-item--wide { grid-column: 1 / -1; }
 

@@ -19,31 +19,38 @@ export async function renderLogin(root) {
 
   root.innerHTML = `
     <main class="login">
-      <section class="login__main">
-        <div class="login__top"><span>Nataniel Litsure Ministries</span><span>Acesso reservado</span></div>
-        <div class="login__inner">
-          ${NOTICE[reason] ? `<p class="login__notice" role="status">${icon(NOTICE[reason][0], 16)}<span>${NOTICE[reason][1]}</span></p>` : ''}
-          <div aria-live="polite" data-step></div>
-          <details class="login__demo">
-            <summary>Contas de demonstração</summary>
-            <div class="login__demo-list">
-              <button type="button" class="login__demo-item login__demo-item--wide" data-demo="admin"><b>Administração</b><span>Samuel Tembe · PIN ${DEMO.admin.pin}</span></button>
-              <button type="button" class="login__demo-item" data-demo="gestor"><b>Gestora</b><span>Rute Langa · PIN ${DEMO.gestor.pin}</span></button>
-              <button type="button" class="login__demo-item" data-demo="gestor2"><b>Gestor</b><span>Paulo Cossa · PIN ${DEMO.gestor2.pin}</span></button>
-            </div>
-          </details>
+      <img class="login__photo" src="assets/img/novo-templo.jpg" alt="" aria-hidden="true">
+      <div class="login__veil" aria-hidden="true"></div>
+
+      <header class="login__bar">
+        <img src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="150" height="66">
+        <span class="login__badge">${icon('key-round', 14)} Acesso reservado</span>
+      </header>
+
+      <div class="login__caption">
+        <p class="login__caption-k">Tesouraria</p>
+        <h2>${esc(settings.obraNome)}</h2>
+        <p>Cada contribuição registada, com recibo para o membro e relatório para a administração.</p>
+      </div>
+
+      <section class="login__portal" aria-label="Entrar">
+        <div class="login__arch">
+          <span class="login__keystone"><img src="assets/brand/mark-navy.svg" alt="" width="34" height="34"></span>
+          <div class="login__inner">
+            ${NOTICE[reason] ? `<p class="login__notice" role="status">${icon(NOTICE[reason][0], 16)}<span>${NOTICE[reason][1]}</span></p>` : ''}
+            <div aria-live="polite" data-step></div>
+            <details class="login__demo">
+              <summary>Contas de demonstração</summary>
+              <div class="login__demo-list">
+                <button type="button" class="login__demo-item login__demo-item--wide" data-demo="admin"><b>Administração</b><span>Samuel Tembe · PIN ${DEMO.admin.pin}</span></button>
+                <button type="button" class="login__demo-item" data-demo="gestor"><b>Gestora</b><span>Rute Langa · PIN ${DEMO.gestor.pin}</span></button>
+                <button type="button" class="login__demo-item" data-demo="gestor2"><b>Gestor</b><span>Paulo Cossa · PIN ${DEMO.gestor2.pin}</span></button>
+              </div>
+            </details>
+          </div>
+          <p class="login__foot">Protótipo · os dados ficam guardados apenas neste navegador.</p>
         </div>
-        <p class="login__foot">Protótipo · os dados ficam guardados apenas neste navegador.</p>
       </section>
-      <aside class="login__brand">
-        <img class="login__photo" src="assets/img/novo-templo.jpg" alt="" aria-hidden="true">
-        <img class="login__brand-logo" src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="196" height="86">
-        <div class="login__plate">
-          <p class="login__plate-k">Tesouraria</p>
-          <h2>${esc(settings.obraNome)}</h2>
-          <p>Registo de contribuições, emissão de recibos e relatórios diários, semanais e mensais.</p>
-        </div>
-      </aside>
     </main>`;
 
   const step = root.querySelector('[data-step]');
