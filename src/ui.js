@@ -52,11 +52,9 @@ export function receipt(c, { member, reviewer, settings, showProof = false }) {
     row('Telemóvel', member ? `+258 ${esc(phoneFmt(member.telefone))}` : '—'),
     row('Data do pagamento', esc(fmtDate(c.data))),
     row('Método', esc(METODOS[c.metodo])),
-    row(c.metodo === 'numerario' ? 'Entregue por' : 'Enviado por', c.pagador ? esc(c.pagador) : '—'),
-    ...(c.metodo === 'numerario' ? [] : [row('Referência', c.referencia ? `<span class="num">${esc(c.referencia)}</span>` : '<span class="muted">Não indicada</span>')]),
   ];
   // Valor recebido e lançado por um gestor: o recibo funciona como acusação de receção
-  if (c.registadoPor) rows.push(row('Recebido por', reviewer ? `${esc(reviewer.nome)}<br><span class="muted small">${esc(reviewer.cargo || 'Gestor')}</span>` : '—'), row('Registado em', esc(fmtDateTime(c.revistoEm || c.declaradoEm))));
+  if (c.registadoPor) rows.push(row('Registado em', esc(fmtDateTime(c.revistoEm || c.declaradoEm))));
   else rows.push(row('Declarada em', esc(fmtDateTime(c.declaradoEm))));
   if (c.estado === 'confirmado' && !c.registadoPor) rows.push(row('Confirmada em', `${esc(fmtDateTime(c.revistoEm))}${reviewer ? `<br><span class="muted small">${esc(reviewer.nome)} · Tesouraria</span>` : ''}`));
   if (c.estado === 'rejeitado') rows.push(row('Revista em', esc(fmtDateTime(c.revistoEm))));

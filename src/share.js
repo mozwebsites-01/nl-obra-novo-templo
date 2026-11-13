@@ -9,8 +9,7 @@ export function receiptData(c, { member, reviewer, settings }) {
   return {
     r: c.ref, v: c.valor, m: c.metodo, d: c.data,
     n: member?.nome || '', t: member?.telefone || '',
-    p: c.pagador || '', x: c.referencia || '', k: c.nota || '',
-    g: reviewer?.nome || '', gc: reviewer?.cargo || 'Gestor',
+    k: c.nota || '',
     e: c.revistoEm || c.declaradoEm, o: settings?.obraNome || 'Obra do Novo Templo',
   };
 }
@@ -48,7 +47,6 @@ export const receiptUrl = (data) =>
 
 // WhatsApp -------------------------------------------------------------------
 export function whatsappText(data) {
-  const pago = data.m === 'numerario' ? 'Entregue por' : 'Enviado por';
   return [
     '*Nataniel Litsure Ministries*',
     data.o,
@@ -58,10 +56,7 @@ export function whatsappText(data) {
     `*Valor:* ${money(data.v)}`,
     `*Forma de pagamento:* ${METODOS[data.m]}`,
     `*Data:* ${fmtDate(data.d)}`,
-    data.p ? `*${pago}:* ${data.p}` : '',
-    data.x ? `*Referência:* ${data.x}` : '',
     `*Recibo n.º:* ${data.r}`,
-    `*Recebido por:* ${data.g}`,
     '',
     'Comprovativo em PDF:',
     receiptUrl(data),
@@ -179,9 +174,6 @@ export async function receiptPdf(data) {
     ['Telemóvel', data.t || data.tm ? `+258 ${phoneFmt(data.t || data.tm)}` : '—'],
     ['Data do pagamento', fmtDate(data.d)],
     ['Forma de pagamento', METODOS[data.m]],
-    [data.m === 'numerario' ? 'Entregue por' : 'Enviado por', data.p || '—'],
-    ...(data.m === 'numerario' ? [] : [['Referência', data.x || 'Não indicada']]),
-    ['Recebido por', `${data.g}${data.gc ? ` · ${data.gc}` : ''}`],
     ['Registado em', fmtDateTime(data.e)],
     ...(data.k ? [['Nota', data.k]] : []),
   ];
