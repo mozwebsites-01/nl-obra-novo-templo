@@ -101,3 +101,4 @@
   font-size: 14px; font-weight: 600; color: var(--navy); transition: border-color var(--t), background var(--t);
 }
 .login__install:hover { border-color: var(--navy); background: #FAFAFB; }
+.login__demo-item--wide { grid-column: 1 / -1; }

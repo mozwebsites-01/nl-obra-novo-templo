@@ -204,7 +204,7 @@
   /* A navegação passa a barra fixa em baixo, como na app do membro */
   .a-nav {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 5;
-    grid-template-columns: repeat(6, 1fr); gap: 0;
+    grid-template-columns: repeat(var(--nav-n, 6), 1fr); gap: 0;
     padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
     background: #fff; border-top: 1px solid #EDEDF1;
   }
@@ -269,4 +269,181 @@
   .inbox__list { max-height: 240px; border-right: 0; border-bottom: 1px solid var(--line); }
   .inbox__head, .inbox__composer { padding: 12px 16px; }
   .inbox__body { padding: 8px 16px 16px; max-height: 50dvh; }
+}
+
+/* ===== Gestão por papéis: administração e gestores ===== */
+
+.a-bar__cta { height: 38px; border-radius: 10px; }
+
+/* Saldo do gestor na barra lateral */
+.side-saldo { padding: 14px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.07); }
+.side-saldo p:first-child { font-size: 11.5px; color: rgba(255, 255, 255, 0.65); }
+.side-saldo__v { margin-top: 2px; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+
+/* Diálogos largos e corpo com scroll */
+dialog.sheet.sheet--wide { max-width: 620px; }
+.sheet__scroll { overflow-y: auto; max-height: calc(100dvh - 190px); }
+dialog.sheet { display: none; flex-direction: column; }
+dialog.sheet[open] { display: flex; }
+
+/* Formulário de registo */
+.rec-form { display: grid; gap: 18px; overflow-y: auto; }
+.rec-form__label { display: flex; justify-content: space-between; align-items: baseline; }
+.rec-form__label label { font-size: 13px; font-weight: 500; }
+.rec-form__label .link { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+.rec-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.rec-form__foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+.rec-amount { display: flex; align-items: baseline; gap: 8px; padding: 2px 0 8px; border-bottom: 1.5px solid var(--line-strong); transition: border-color var(--t); }
+.rec-amount:focus-within { border-color: var(--navy); }
+.rec-amount input { flex: 1; min-width: 0; border: 0; outline: none; background: none; padding: 0; font-size: 34px; font-weight: 700; color: var(--navy); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.rec-amount input::placeholder { color: var(--line-strong); }
+.rec-amount span { font-size: 16px; color: var(--ink-2); font-weight: 500; }
+.rec-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.rec-chips button { height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid var(--line); background: #fff; font-size: 12.5px; font-variant-numeric: tabular-nums; transition: border-color var(--t); }
+.rec-chips button:hover { border-color: var(--navy); }
+
+/* Escolha segmentada (forma de pagamento, tipo de relatório) */
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 4px; border-radius: 12px; background: #F2F2F5; }
+.seg label { position: relative; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: grid; place-items: center; height: 36px; padding: 0 10px; border-radius: 9px; font-size: 13px; font-weight: 500; color: var(--ink-2); white-space: nowrap; transition: background var(--t), color var(--t), box-shadow var(--t); }
+.seg input:checked + span { background: #fff; color: var(--navy); font-weight: 600; box-shadow: 0 1px 3px rgba(20, 21, 43, 0.12); }
+.seg input:focus-visible + span { outline: 2px solid var(--navy); outline-offset: 1px; }
+.seg--inline { grid-template-columns: repeat(3, auto); }
+
+/* Painel: saldo de cada gestor */
+.split { display: grid; gap: 18px; }
+.split__row { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; }
+.split__who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.split__name { font-size: 14px; font-weight: 600; }
+.split__val { text-align: right; }
+.split__val p:first-child { font-size: 17px; font-weight: 700; }
+.split__bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.split__bar div { height: 100%; background: var(--navy); border-radius: 2px; transform-origin: left; animation: grow 800ms var(--ease) both; }
+.split__total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14px; }
+.split__total strong { font-size: 19px; color: var(--navy); }
+
+/* Início do gestor: saldo acumulado em destaque */
+.g-home { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; }
+.g-home__wide { grid-column: 1 / -1; }
+.saldo { position: relative; overflow: hidden; padding: 28px; background: var(--navy); border-color: var(--navy); color: #fff; }
+.saldo::after { content: ""; position: absolute; right: -70px; top: -90px; width: 240px; height: 240px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.08); pointer-events: none; }
+.saldo .saldo__eyebrow { color: rgba(255, 255, 255, 0.7); }
+.saldo__value { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; }
+.saldo__value .display-num { font-size: 48px; line-height: 1; font-weight: 700; }
+.saldo__value .unit { font-size: 18px; color: rgba(255, 255, 255, 0.7); }
+.saldo__sub { margin-top: 10px; font-size: 13.5px; color: rgba(255, 255, 255, 0.72); }
+.saldo__periods { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
+.saldo__periods > div { padding: 14px 12px 0 0; }
+.saldo__periods > div + div { padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, 0.14); }
+.saldo__periods dt { font-size: 12px; color: rgba(255, 255, 255, 0.65); }
+.saldo__periods dd:nth-of-type(1) { margin-top: 4px; font-size: 18px; font-weight: 700; }
+.saldo__periods .muted { color: rgba(255, 255, 255, 0.55); }
+.saldo__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.btn-light { background: #fff; color: var(--navy); border-radius: 10px; }
+.btn-light:hover { background: var(--tint); }
+.btn-ghost-light { color: #fff; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 10px; }
+.btn-ghost-light:hover { border-color: #fff; }
+
+/* Gestores (administração) */
+.strip { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 24px; }
+.strip > div { padding: 18px 20px; }
+.strip > div + div { border-left: 1px solid var(--line); }
+.strip dt { font-size: 12px; color: var(--ink-2); }
+.strip dd { margin-top: 4px; font-size: 20px; font-weight: 700; }
+.strip > div:first-child dd { color: var(--navy); }
+.gestor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; }
+.gestor { padding: 22px; display: flex; flex-direction: column; }
+.gestor.is-suspended { opacity: 0.65; }
+.gestor__head { display: flex; align-items: center; gap: 12px; }
+.gestor__id { flex: 1; min-width: 0; }
+.gestor__name { font-size: 16px; font-weight: 700; }
+.gestor__saldo { display: flex; align-items: baseline; gap: 6px; margin: 6px 0 4px; }
+.gestor__saldo .display-num { font-size: 34px; font-weight: 700; color: var(--navy); line-height: 1.1; }
+.gestor__saldo .unit { font-size: 15px; color: var(--ink-2); }
+.gestor__periods { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 18px; border-top: 1px solid var(--line); }
+.gestor__periods > div { padding: 12px 8px 0 0; }
+.gestor__periods > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
+.gestor__periods dt { font-size: 11.5px; color: var(--ink-2); }
+.gestor__periods dd { margin-top: 2px; font-size: 14px; font-weight: 600; }
+.gestor__foot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 20px; }
+.gestor__foot .btn-ghost { margin-left: auto; }
+
+/* Relatórios */
+.report-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
+.period-nav { display: flex; align-items: center; gap: 6px; }
+.period-nav__date { width: auto; height: 40px; }
+.period-nav .a-icon[disabled] { opacity: 0.35; pointer-events: none; }
+.report-controls .select { width: auto; min-width: 180px; height: 40px; }
+.report { padding: 36px 40px; max-width: 920px; }
+.report__head { display: flex; align-items: center; gap: 24px; padding-bottom: 22px; border-bottom: 2px solid var(--navy); }
+.report__head img { width: 120px; height: auto; flex: none; }
+.report__meta h2 { font-size: 22px; font-weight: 700; margin-top: 4px; }
+.report__period { margin-top: 2px; font-size: 15px; color: var(--ink-2); }
+.report__info { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
+.report__info dt, .report__kpis dt { font-size: 11.5px; color: var(--ink-2); }
+.report__info dd { margin-top: 2px; font-size: 13.5px; font-weight: 600; }
+.report__kpis { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); margin-top: 22px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.report__kpis > div { padding: 16px 18px; }
+.report__kpis > div + div { border-left: 1px solid var(--line); }
+.report__kpis dd { margin-top: 4px; font-size: 18px; font-weight: 700; }
+.report__kpis .is-main { background: var(--tint); }
+.report__kpis .is-main dd { color: var(--navy); font-size: 22px; }
+.report__sec { margin-top: 28px; }
+.report__sec h3 { font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 6px; }
+.report .table th, .report .table td { padding-left: 0; padding-right: 12px; }
+.report .table tfoot td { border-top: 2px solid var(--ink); border-bottom: 0; font-weight: 700; padding-top: 12px; }
+.report__sign { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 56px; }
+.report__sign span { display: block; height: 1px; background: var(--ink); }
+.report__sign p { margin-top: 6px; font-size: 12px; color: var(--ink-2); text-align: center; }
+
+@media (max-width: 1100px) {
+  .g-home { grid-template-columns: 1fr; }
+  .strip { grid-template-columns: repeat(2, 1fr); }
+  .strip > div:nth-child(3) { border-left: 0; }
+  .strip > div:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .report__info { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 760px) {
+  .a-bar__cta { padding: 0 10px; font-size: 12.5px; }
+  .saldo { padding: 22px 20px; }
+  .saldo__value .display-num { font-size: 38px; }
+  .saldo__periods dd:nth-of-type(1) { font-size: 15px; }
+  .rec-form__row { grid-template-columns: 1fr; }
+  .seg { grid-template-columns: repeat(2, 1fr); }
+  .seg--inline { grid-template-columns: repeat(3, 1fr); width: 100%; }
+  .report { padding: 22px 18px; }
+  .report__head { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .report__kpis { grid-template-columns: 1fr 1fr; }
+  .report__kpis > div:nth-child(3) { border-left: 0; }
+  .report__kpis > div:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .report__sign { gap: 24px; }
+  .report .table { font-size: 12.5px; }
+}
+
+/* Impressão: relatório (página) e recibo (diálogo) sem a aplicação à volta */
+@media print {
+  @page { margin: 14mm; }
+  .a-side, .a-bar, .a-top, .report-controls, #toast { display: none !important; }
+  .a-shell { display: block; }
+  .a-content { padding: 0 !important; }
+  .report { max-width: none; padding: 0; border: 0; box-shadow: none; }
+  .report__kpis .is-main { background: #EEF0F7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .table tr { break-inside: avoid; }
+  body.print-dialog .a-shell { display: none !important; }
+  body.print-dialog dialog.sheet { position: static; display: block; width: 100%; max-width: none; max-height: none; box-shadow: none; border: 0; }
+  body.print-dialog dialog.sheet::backdrop { display: none; }
+  body.print-dialog .sheet__head, body.print-dialog .sheet__foot { display: none; }
+  body.print-dialog .sheet__scroll { max-height: none; overflow: visible; }
+}
+@media (max-width: 760px) {
+  .saldo__periods { grid-template-columns: 1fr; }
+  .saldo__periods > div, .saldo__periods > div + div {
+    display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: baseline;
+    padding: 12px 0; border-left: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .saldo__periods dd:nth-of-type(1) { grid-column: 2; grid-row: 1; margin: 0; text-align: right; }
+  .saldo__periods dd:nth-of-type(2) { grid-column: 1; grid-row: 2; margin: 0; }
+  .saldo__actions .btn { flex: 1; }
+  .gestor-grid { grid-template-columns: 1fr; }
 }

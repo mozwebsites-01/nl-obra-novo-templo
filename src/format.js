@@ -99,3 +99,29 @@ export function defaultPayer(member, metodo) {
   if (!member) return '';
   return metodo === 'mpesa' || metodo === 'emola' ? `+258 ${phoneFmt(member.telefone)}` : member.nome;
 }
+
+// Períodos dos relatórios: dia, semana (segunda a domingo) e mês
+export function periodRange(kind, anchor = isoDate()) {
+  const d = parseISO(anchor);
+  if (kind === 'semana') {
+    const start = new Date(d); start.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const end = new Date(start); end.setDate(start.getDate() + 6);
+    const from = isoDate(start), to = isoDate(end);
+    return { from, to, label: `Semana de ${fmtDateShort(from)} a ${fmtDate(to)}` };
+  }
+  if (kind === 'mes') {
+    const from = isoDate(new Date(d.getFullYear(), d.getMonth(), 1));
+    const to = isoDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    const label = monthLong(from.slice(0, 7));
+    return { from, to, label: label[0].toUpperCase() + label.slice(1) };
+  }
+  return { from: anchor, to: anchor, label: fmtDate(anchor) };
+}
+
+// Desloca a data de referência um período para trás (-1) ou para a frente (+1)
+export function shiftPeriod(kind, anchor, step) {
+  const d = parseISO(anchor);
+  if (kind === 'mes') d.setMonth(d.getMonth() + step, 1);
+  else d.setDate(d.getDate() + step * (kind === 'semana' ? 7 : 1));
+  return isoDate(d);
+}

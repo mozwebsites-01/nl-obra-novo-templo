@@ -53,10 +53,12 @@ export function receipt(c, { member, reviewer, settings, showProof = false }) {
     row('Data do pagamento', esc(fmtDate(c.data))),
     row('Método', esc(METODOS[c.metodo])),
     row(c.metodo === 'numerario' ? 'Entregue por' : 'Enviado por', c.pagador ? esc(c.pagador) : '—'),
-    row('Referência', c.referencia ? `<span class="num">${esc(c.referencia)}</span>` : '<span class="muted">Não indicada</span>'),
-    row('Declarada em', esc(fmtDateTime(c.declaradoEm))),
+    ...(c.metodo === 'numerario' ? [] : [row('Referência', c.referencia ? `<span class="num">${esc(c.referencia)}</span>` : '<span class="muted">Não indicada</span>')]),
   ];
-  if (c.estado === 'confirmado') rows.push(row('Confirmada em', `${esc(fmtDateTime(c.revistoEm))}${reviewer ? `<br><span class="muted small">${esc(reviewer.nome)} · Tesouraria</span>` : ''}`));
+  // Valor recebido e lançado por um gestor: o recibo funciona como acusação de receção
+  if (c.registadoPor) rows.push(row('Recebido por', reviewer ? `${esc(reviewer.nome)}<br><span class="muted small">${esc(reviewer.cargo || 'Gestor')}</span>` : '—'), row('Registado em', esc(fmtDateTime(c.revistoEm || c.declaradoEm))));
+  else rows.push(row('Declarada em', esc(fmtDateTime(c.declaradoEm))));
+  if (c.estado === 'confirmado' && !c.registadoPor) rows.push(row('Confirmada em', `${esc(fmtDateTime(c.revistoEm))}${reviewer ? `<br><span class="muted small">${esc(reviewer.nome)} · Tesouraria</span>` : ''}`));
   if (c.estado === 'rejeitado') rows.push(row('Revista em', esc(fmtDateTime(c.revistoEm))));
   if (c.nota) rows.push(row('Nota', esc(c.nota)));
 
@@ -74,7 +76,7 @@ export function receipt(c, { member, reviewer, settings, showProof = false }) {
   return `<article class="receipt">
     <header class="receipt__head">
       <img class="receipt__mark" src="assets/brand/mark-navy.svg" alt="">
-      <div><p class="eyebrow">Recibo de contribuição</p><p class="receipt__ref">${esc(c.ref)}</p></div>
+      <div><p class="eyebrow">${c.registadoPor ? 'Recibo de receção' : 'Recibo de contribuição'}</p><p class="receipt__ref">${esc(c.ref)}</p></div>
       ${status(c.estado)}
     </header>
     <div class="receipt__amount"><span class="display-num">${money(c.valor, { unit: false })}</span><span class="receipt__unit">MT</span></div>

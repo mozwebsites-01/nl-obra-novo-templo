@@ -1,11 +1,14 @@
 // Camada de dados. Toda a aplicação passa por aqui; as funções são assíncronas
 // para que esta implementação (localStorage) possa ser trocada por Supabase
 // sem alterar as vistas.
-import { buildSeed, notificationText, seedMessages, seedRegistrations } from './seed.js';
+import { buildSeed, notificationText, seedMessages, seedRegistrations, seedGestores, gestorFor } from './seed.js';
 import { isoDate, monthKey, monthShort, defaultPayer } from './format.js';
 
 const KEY = 'nl.db.v1';
 const SESSION = 'nl.session.v1';
+// A sessão caduca ao fim de três minutos sem atividade: quem deixa o
+// telemóvel pousado ou fecha a app tem de introduzir as credenciais outra vez.
+export const SESSION_TTL = 3 * 60 * 1000;
 
 let db = load();
 
@@ -17,6 +20,12 @@ function load() {
       // Migração: dados guardados antes de existirem mensagens
       if (!data.messages) { data.messages = seedMessages(); save(data); }
       if (!data.registos) { data.registos = true; data.members.push(...seedRegistrations()); save(data); }
+      for (const g of seedGestores()) if (!data.members.some((m) => m.id === g.id)) { data.members.splice(1, 0, g); save(data); }
+      // Contribuições antigas sem gestor: atribui quem as recebeu
+      if (data.contributions.some((c) => c.estado === 'confirmado' && !c.registadoPor)) {
+        for (const c of data.contributions) if (c.estado === 'confirmado' && !c.registadoPor) c.registadoPor = gestorFor(c.membroId);
+        save(data);
+      }
       if (data.contributions.some((c) => c.pagador === undefined)) {
         const byId = new Map(data.members.map((m) => [m.id, m]));
         for (const c of data.contributions) if (c.pagador === undefined) c.pagador = defaultPayer(byId.get(c.membroId), c.metodo);
@@ -43,10 +52,49 @@ const sum = (list) => list.reduce((s, c) => s + c.valor, 0);
 const byRecent = (a, b) => b.data.localeCompare(a.data) || b.declaradoEm.localeCompare(a.declaradoEm);
 
 // Sessão --------------------------------------------------------------------
+// Guardada como { id, at }: `at` é o instante da última atividade.
+let expirou = false;
+
+function readSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION));
+    return s && s.id ? s : null;
+  } catch {
+    return null; // formato antigo (só o id): trata-se como sessão inválida
+  }
+}
+
+export const hasSession = () => !!readSession();
+
+// Renova o prazo. Chamada a cada sinal de atividade do utilizador.
+export function touchSession() {
+  const s = readSession();
+  if (s) localStorage.setItem(SESSION, JSON.stringify({ id: s.id, at: Date.now() }));
+}
+
+// True uma única vez, logo a seguir a uma sessão ter caducado, para a vista
+// de entrada poder avisar porque é que estão de volta ao login.
+export function tookExpired() {
+  const v = expirou;
+  expirou = false;
+  return v;
+}
+
 export async function getSessionUser() {
-  const id = localStorage.getItem(SESSION);
-  const m = id ? db.members.find((x) => x.id === id) : null;
-  return m && isActive(m) ? m : null;
+  const s = readSession();
+  if (!s) return null;
+  if (Date.now() - (s.at || 0) > SESSION_TTL) {
+    expirou = true;
+    await signOut();
+    return null;
+  }
+  const m = db.members.find((x) => x.id === s.id);
+  if (!m || !canSignIn(m)) {
+    await signOut();
+    return null;
+  }
+  touchSession();
+  return m;
 }
 
 export async function findMemberByPhone(telefone) {
@@ -55,11 +103,14 @@ export async function findMemberByPhone(telefone) {
 
 // Estados do membro: pendente (aguarda aprovação) · ativo · suspenso · recusado
 const isActive = (m) => !m.estado || m.estado === 'ativo';
+// Painel do membro em pausa: só a administração e os gestores entram
+export const STAFF = ['admin', 'gestor'];
+const canSignIn = (m) => STAFF.includes(m.role) && isActive(m);
 
 export async function signIn(telefone, pin) {
   const m = await findMemberByPhone(telefone);
-  if (!m || !isActive(m) || m.pin !== pin) return null;
-  localStorage.setItem(SESSION, m.id);
+  if (!m || !canSignIn(m) || m.pin !== pin) return null;
+  localStorage.setItem(SESSION, JSON.stringify({ id: m.id, at: Date.now() }));
   return m;
 }
 
@@ -181,12 +232,26 @@ export async function reviewRegistration(id, aprovar, revistoPor) {
 // Suspender impede a entrada; reativar devolve o acesso
 export async function setSuspended(id, suspenso, motivo = '') {
   const m = db.members.find((x) => x.id === id);
-  if (!m || m.role !== 'membro') throw new Error('Membro não encontrado.');
+  if (!m || !['membro', 'gestor'].includes(m.role)) throw new Error('Pessoa não encontrada.');
   m.estado = suspenso ? 'suspenso' : 'ativo';
   m.motivoSuspensao = suspenso ? motivo : null;
   m.suspensoEm = suspenso ? new Date().toISOString() : null;
   save();
   return m;
+}
+
+// Gestores: criados só pela administração
+export async function listGestores() {
+  return db.members.filter((m) => m.role === 'gestor').sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));
+}
+
+export async function createGestor({ nome, telefone }) {
+  if (db.members.some((m) => m.telefone === telefone)) throw new Error('Este número já está registado no sistema.');
+  const pin = String(1000 + Math.floor(Math.random() * 9000));
+  const gestor = { id: uid('m_'), nome, telefone, pin, role: 'gestor', cargo: 'Gestor', estado: 'ativo', criadoEm: new Date().toISOString() };
+  db.members.push(gestor);
+  save();
+  return { gestor, pin };
 }
 
 export async function createMember({ nome, telefone }) {
@@ -254,15 +319,34 @@ export async function listThreads() {
 }
 
 // Contribuições -------------------------------------------------------------
-export async function listContributions({ membroId, estado } = {}) {
+export async function listContributions({ membroId, estado, registadoPor } = {}) {
   let list = db.contributions;
   if (membroId) list = list.filter((c) => c.membroId === membroId);
+  if (registadoPor) list = list.filter((c) => c.registadoPor === registadoPor);
   if (estado) list = list.filter((c) => c.estado === estado);
   return [...list].sort(byRecent);
 }
 
 export async function getContribution(id) {
   return db.contributions.find((c) => c.id === id) || null;
+}
+
+// Valor recebido e lançado por um gestor ou pela administração: fica logo confirmado
+export async function recordContribution({ membroId, valor, metodo, referencia, pagador, data, nota, registadoPor }) {
+  db.seq = (db.seq || db.contributions.length) + 1;
+  const now = new Date().toISOString();
+  const c = {
+    id: uid('c_'),
+    ref: `NL-${new Date().getFullYear()}-${String(db.seq).padStart(6, '0')}`,
+    membroId, valor, metodo,
+    referencia: referencia || '', pagador: pagador || '',
+    data, nota: nota || '', comprovativo: null,
+    estado: 'confirmado', motivo: null,
+    declaradoEm: now, revistoEm: now, revistoPor: registadoPor, registadoPor,
+  };
+  db.contributions.push(c);
+  save();
+  return c;
 }
 
 export async function declareContribution({ membroId, valor, metodo, referencia, pagador, data, nota, comprovativo }) {

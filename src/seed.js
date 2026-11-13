@@ -1,10 +1,13 @@
 // Dados de demonstração, determinísticos e relativos à data de hoje.
 // Contas de teste (apenas para este protótipo local):
-//   Tesouraria (admin) — telemóvel 84 000 0001, PIN 2580
-//   Membro             — telemóvel 84 123 4567, PIN 1234
+//   Administração (principal) — telemóvel 84 000 0001, PIN 2580
+//   Gestora Rute Langa         — telemóvel 84 000 0002, PIN 1357
+//   Gestor Paulo Cossa         — telemóvel 84 000 0003, PIN 2468
 import { isoDate, pad, defaultPayer } from './format.js';
 
 export const DEMO = {
+  gestor: { telefone: '840000002', pin: '1357' },
+  gestor2: { telefone: '840000003', pin: '2468' },
   admin: { telefone: '840000001', pin: '2580' },
   membro: { telefone: '841234567', pin: '1234' },
 };
@@ -161,11 +164,31 @@ export function buildSeed(now = new Date()) {
       inicio: isoDate(start),
       prazo: `${now.getFullYear() + 1}-12-31`,
     },
-    members: [admin, ana, ...others, ...seedRegistrations(now)],
-    contributions,
+    members: [admin, ...seedGestores(startIso), ana, ...others, ...seedRegistrations(now)],
+    // Modelo atual: cada valor é recebido e lançado por um gestor, por isso fica logo confirmado
+    contributions: contributions.map((c) => ({
+      ...c, estado: 'confirmado', motivo: null, comprovativo: null,
+      revistoEm: c.declaradoEm, revistoPor: gestorFor(c.membroId), registadoPor: gestorFor(c.membroId),
+    })),
     notifications,
     messages: seedMessages(now),
   };
+}
+
+// Gestores de demonstração: registam membros, recebem e lançam contribuições
+export const GESTOR_IDS = ['m_gestor', 'm_gestor2'];
+export function seedGestores(criadoEm = new Date().toISOString()) {
+  return [
+    { id: 'm_gestor', nome: 'Rute Langa', cargo: 'Gestora', telefone: DEMO.gestor.telefone, pin: DEMO.gestor.pin, role: 'gestor', estado: 'ativo', criadoEm },
+    { id: 'm_gestor2', nome: 'Paulo Cossa', cargo: 'Gestor', telefone: DEMO.gestor2.telefone, pin: DEMO.gestor2.pin, role: 'gestor', estado: 'ativo', criadoEm },
+  ];
+}
+
+// Cada membro entrega sempre ao mesmo gestor (distribuição estável pelo id)
+export function gestorFor(membroId) {
+  let h = 0;
+  for (const ch of membroId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return GESTOR_IDS[h % GESTOR_IDS.length];
 }
 
 // Pedidos de registo à espera de aprovação

@@ -20,8 +20,9 @@ export async function renderLogin(root) {
           <details class="login__demo">
             <summary>Contas de demonstração</summary>
             <div class="login__demo-list">
-              <button type="button" class="login__demo-item" data-demo="membro"><b>Membro</b><span>Ana Matsinhe · PIN ${DEMO.membro.pin}</span></button>
-              <button type="button" class="login__demo-item" data-demo="admin"><b>Tesouraria</b><span>Samuel Tembe · PIN ${DEMO.admin.pin}</span></button>
+              <button type="button" class="login__demo-item login__demo-item--wide" data-demo="admin"><b>Administração</b><span>Samuel Tembe · PIN ${DEMO.admin.pin}</span></button>
+              <button type="button" class="login__demo-item" data-demo="gestor"><b>Gestora</b><span>Rute Langa · PIN ${DEMO.gestor.pin}</span></button>
+              <button type="button" class="login__demo-item" data-demo="gestor2"><b>Gestor</b><span>Paulo Cossa · PIN ${DEMO.gestor2.pin}</span></button>
             </div>
           </details>
           <button type="button" class="login__install" data-install-guide>${icon('smartphone', 18)} Instalar a app no telemóvel</button>
@@ -35,7 +36,7 @@ export async function renderLogin(root) {
         </div>
         <div class="login__brand-copy">
           <h2>Cada contribuição, registada com transparência.</h2>
-          <p>Declare as suas contribuições, consulte o recibo de cada uma e fale diretamente com a tesouraria.</p>
+          <p>Os gestores registam cada valor recebido e emitem o recibo. A administração acompanha o total de cada gestor e o total geral da obra.</p>
         </div>
       </aside>
     </main>`;
@@ -47,7 +48,7 @@ export async function renderLogin(root) {
     pin = '';
     step.innerHTML = `
       <h1 class="login__title">Olá de novo</h1>
-      <p class="login__lead">Entre com o número de telemóvel registado na igreja.</p>
+      <p class="login__lead">Entre com o número de telemóvel da sua conta de gestão.</p>
       <form class="login__form" novalidate>
         <div class="field">
           <label for="tel">Número de telemóvel</label>
@@ -58,20 +59,18 @@ export async function renderLogin(root) {
         </div>
         <button class="btn btn-primary btn-block" type="submit">Continuar</button>
       </form>
-      <p class="login__alt">Ainda não tem conta? <button type="button" class="link" data-register>Pedir acesso</button></p>`;
+      <p class="login__alt">Acesso reservado à administração e aos gestores da obra.</p>`;
     const input = step.querySelector('#tel');
     input.focus();
     maskPhone(input);
-    step.querySelector('[data-register]').addEventListener('click', () => registerStep());
     step.querySelector('form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const digits = input.value.replace(/\D/g, '');
       if (!isValidPhone(digits)) return phoneStep('Introduza os 9 dígitos do número, começando por 8.');
       telefone = digits;
       const m = await store.findMemberByPhone(telefone);
-      if (!m) return registerStep('Este número ainda não está registado. Peça acesso abaixo; a tesouraria vai aprovar o seu pedido.');
-      if (m.estado === 'pendente') return statusStep('pendente');
-      if (m.estado === 'recusado') return statusStep('recusado');
+      if (!m) return phoneStep('Este número não tem acesso ao sistema. Fale com a administração da obra.');
+      if (m.role === 'membro') return statusStep('pausado');
       if (m.estado === 'suspenso') return statusStep('suspenso');
       pinStep();
     });
@@ -129,7 +128,8 @@ export async function renderLogin(root) {
     enviado: ['check', 'Pedido enviado', 'A tesouraria foi notificada e vai rever o seu pedido. Assim que for aprovado, entre com o seu número e o PIN que criou.'],
     pendente: ['history', 'Pedido em análise', 'O seu pedido de acesso ainda aguarda aprovação da tesouraria. Tente novamente mais tarde.'],
     recusado: ['x', 'Pedido não aprovado', 'Não foi possível aprovar o acesso com este número. Fale com a secretaria da igreja.'],
-    suspenso: ['key-round', 'Acesso suspenso', 'O acesso desta conta está suspenso. Fale com a tesouraria para o reativar.'],
+    suspenso: ['key-round', 'Acesso suspenso', 'O acesso desta conta está suspenso. Fale com a administração para o reativar.'],
+    pausado: ['history', 'Área do membro em pausa', 'Por agora, as contribuições são registadas pelos gestores da obra. Entregue a sua contribuição a um gestor e receberá o recibo.'],
   };
 
   function statusStep(kind) {
@@ -181,7 +181,7 @@ export async function renderLogin(root) {
       const user = await store.signIn(telefone, pin);
       await new Promise((r) => setTimeout(r, 180));
       busy = false;
-      if (user) return navigate(user.role === 'admin' ? '#/a/painel' : '#/m/inicio');
+      if (user) return navigate(user.role === 'admin' ? '#/a/painel' : '#/a/inicio');
       pin = '';
       paint();
       dots.classList.add('is-error');
