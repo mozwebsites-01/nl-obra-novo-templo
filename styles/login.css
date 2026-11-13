@@ -95,10 +95,4 @@
   .login__title { font-size: 24px; }
   .login__foot { text-align: center; }
 }
-.login__install {
-  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
-  margin-top: 16px; height: 48px; border-radius: 12px; border: 1px solid var(--line);
-  font-size: 14px; font-weight: 600; color: var(--navy); transition: border-color var(--t), background var(--t);
-}
-.login__install:hover { border-color: var(--navy); background: #FAFAFB; }
 .login__demo-item--wide { grid-column: 1 / -1; }

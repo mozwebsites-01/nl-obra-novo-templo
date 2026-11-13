@@ -12,7 +12,6 @@ import {
   METODOS, money, pct, fmtDate, fmtDateShort, fmtDateTime, fmtLongToday, monthKey, monthShort, monthLong,
   phoneFmt, isValidPhone, isoDate, parseAmount, defaultPayer, firstName, periodRange, shiftPeriod,
 } from '../format.js';
-import { openInstallGuide } from '../install.js';
 
 // [chave, rótulo, ícone, rótulo curto para a barra inferior do telemóvel]
 const NAV_ADMIN = [
@@ -85,9 +84,8 @@ export async function renderAdmin(root, page, user, param) {
         </nav>
         <div class="a-side__foot">
           ${mine ? `<div class="side-saldo"><p>O seu saldo acumulado</p><p class="side-saldo__v num">${money(mine.total.valor, { decimals: false })}</p></div>` : ''}
-          <button type="button" class="a-side__ghost" data-act="install">${icon('smartphone', 16)}<span>Instalar no telemóvel</span>${icon('chevron-right', 14)}</button>
           ${isAdmin(user) ? `<button type="button" class="a-side__ghost" data-act="reset">${icon('rotate-ccw', 16)}<span>Repor demonstração</span>${icon('chevron-right', 14)}</button>` : ''}
-          <p class="a-side__ver">Protótipo · v0.4</p>
+          <p class="a-side__ver">Protótipo · v0.5</p>
         </div>
       </aside>
       <div class="a-main">
@@ -119,7 +117,6 @@ export async function renderAdmin(root, page, user, param) {
   };
 
   root.querySelector('[data-act=logout]').addEventListener('click', async () => { await store.signOut(); navigate('#/entrar'); });
-  root.querySelector('[data-act=install]').addEventListener('click', openInstallGuide);
   root.querySelector('[data-record]')?.addEventListener('click', () => recordDialog(ctx));
   root.querySelector('[data-search]').addEventListener('submit', (e) => {
     e.preventDefault();

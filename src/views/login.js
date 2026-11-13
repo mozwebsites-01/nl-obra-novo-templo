@@ -1,7 +1,6 @@
 import * as store from '../store.js';
 import { DEMO } from '../seed.js';
 import { esc, icon, navigate } from '../ui.js';
-import { openInstallGuide } from '../install.js';
 import { isValidPhone, phoneFmt } from '../format.js';
 
 export async function renderLogin(root) {
@@ -25,7 +24,6 @@ export async function renderLogin(root) {
               <button type="button" class="login__demo-item" data-demo="gestor2"><b>Gestor</b><span>Paulo Cossa · PIN ${DEMO.gestor2.pin}</span></button>
             </div>
           </details>
-          <button type="button" class="login__install" data-install-guide>${icon('smartphone', 18)} Instalar a app no telemóvel</button>
         </div>
         <p class="login__foot">Protótipo · os dados ficam guardados apenas neste navegador.</p>
       </section>
@@ -42,7 +40,6 @@ export async function renderLogin(root) {
     </main>`;
 
   const step = root.querySelector('[data-step]');
-  root.querySelector('[data-install-guide]').addEventListener('click', openInstallGuide);
 
   function phoneStep(error = '') {
     pin = '';

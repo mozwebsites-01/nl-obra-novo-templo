@@ -38,15 +38,6 @@ Depois abra http://localhost:4173. Não há dependências para instalar (Node 18
   Cada gestor vê **apenas os seus recebimentos e o seu saldo acumulado**.
 - Relatórios: Relatórios › Diário / Semanal / Mensal › Imprimir (ou Exportar CSV).
 
-## Instalar no telemóvel (Android e iPhone)
-
-A app é uma PWA (`manifest.webmanifest`, `sw.js`, ícones em `assets/icons/`).
-O guia "Instalar no telemóvel" está na entrada e na barra lateral da área de gestão. No Android aparece o botão **Instalar agora**;
-no iPhone, os passos **Partilhar › Adicionar ao ecrã principal**.
-
-A instalação só funciona em **HTTPS** (ou `localhost`). Para testar em telemóveis
-reais é preciso publicar o protótipo num endereço com HTTPS (por exemplo Vercel ou Netlify).
-
 Os dados ficam no `localStorage` do navegador. "Repor demonstração" (barra lateral
 do admin ou Perfil do membro) volta aos dados iniciais.
 
