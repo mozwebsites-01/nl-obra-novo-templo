@@ -22,35 +22,23 @@ export async function renderLogin(root) {
       <img class="login__photo" src="assets/img/novo-templo.jpg" alt="" aria-hidden="true">
       <div class="login__veil" aria-hidden="true"></div>
 
-      <header class="login__bar">
-        <img src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="150" height="66">
-        <span class="login__badge">${icon('key-round', 14)} Acesso reservado</span>
-      </header>
-
-      <div class="login__caption">
-        <p class="login__caption-k">Tesouraria</p>
-        <h2>${esc(settings.obraNome)}</h2>
-        <p>Cada contribuição registada, com recibo para o membro e relatório para a administração.</p>
-      </div>
-
-      <section class="login__portal" aria-label="Entrar">
-        <div class="login__arch">
-          <span class="login__keystone"><img src="assets/brand/mark-navy.svg" alt="" width="34" height="34"></span>
-          <div class="login__inner">
-            ${NOTICE[reason] ? `<p class="login__notice" role="status">${icon(NOTICE[reason][0], 16)}<span>${NOTICE[reason][1]}</span></p>` : ''}
-            <div aria-live="polite" data-step></div>
-            <details class="login__demo">
-              <summary>Contas de demonstração</summary>
-              <div class="login__demo-list">
-                <button type="button" class="login__demo-item login__demo-item--wide" data-demo="admin"><b>Administração</b><span>Samuel Tembe · PIN ${DEMO.admin.pin}</span></button>
-                <button type="button" class="login__demo-item" data-demo="gestor"><b>Gestora</b><span>Rute Langa · PIN ${DEMO.gestor.pin}</span></button>
-                <button type="button" class="login__demo-item" data-demo="gestor2"><b>Gestor</b><span>Paulo Cossa · PIN ${DEMO.gestor2.pin}</span></button>
-              </div>
-            </details>
+      <section class="login__card" aria-label="Entrar">
+        <img class="login__logo" src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="150" height="66">
+        <p class="login__obra">Tesouraria · ${esc(settings.obraNome)}</p>
+        <div class="login__inner">
+          ${NOTICE[reason] ? `<p class="login__notice" role="status">${icon(NOTICE[reason][0], 16)}<span>${NOTICE[reason][1]}</span></p>` : ''}
+          <div aria-live="polite" data-step></div>
+          <div class="login__demo">
+            <p class="login__or"><span>ou entre com uma conta de demonstração</span></p>
+            <div class="login__demo-list">
+              <button type="button" class="login__demo-item" data-demo="admin">${icon('landmark', 17)}<b>Administração</b><span>Samuel Tembe · PIN ${DEMO.admin.pin}</span></button>
+              <button type="button" class="login__demo-item" data-demo="gestor">${icon('user', 17)}<b>Gestora</b><span>Rute Langa · PIN ${DEMO.gestor.pin}</span></button>
+              <button type="button" class="login__demo-item" data-demo="gestor2">${icon('user', 17)}<b>Gestor</b><span>Paulo Cossa · PIN ${DEMO.gestor2.pin}</span></button>
+            </div>
           </div>
-          <p class="login__foot">Protótipo · os dados ficam guardados apenas neste navegador.</p>
         </div>
       </section>
+      <p class="login__foot">Acesso reservado à administração e aos gestores · Protótipo, os dados ficam neste navegador</p>
     </main>`;
 
   const step = root.querySelector('[data-step]');
@@ -59,19 +47,19 @@ export async function renderLogin(root) {
     pin = '';
     clearInterval(lockTimer);
     step.innerHTML = `
-      <h1 class="login__title">Olá de novo</h1>
-      <p class="login__lead">Entre com o número de telemóvel da sua conta de gestão.</p>
+      <h1 class="login__title">Entrar</h1>
+      <p class="login__lead">Use o número de telemóvel da sua conta de gestão.</p>
       <form class="login__form" novalidate>
         <div class="field">
           <label for="tel">Número de telemóvel</label>
-          <div class="phone"><span class="phone__prefix">+258</span>
+          <div class="phone"><span class="phone__prefix">${icon('smartphone', 17)}+258</span>
             <input id="tel" name="tel" inputmode="numeric" autocomplete="tel-national" placeholder="84 123 4567" value="${esc(telefone ? phoneFmt(telefone) : '')}" aria-describedby="tel-err">
           </div>
           <p class="error-text" id="tel-err" ${error ? '' : 'hidden'}>${esc(error)}</p>
         </div>
         <button class="btn btn-primary btn-block" type="submit">Continuar</button>
       </form>
-      <p class="login__alt">Acesso reservado à administração e aos gestores da obra.</p>`;
+`;
     const input = step.querySelector('#tel');
     input.focus();
     maskPhone(input);

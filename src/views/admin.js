@@ -445,11 +445,11 @@ async function inicio(ctx) {
 function receiptsTable(list, people, { showReceiver = false } = {}) {
   if (!list.length) return '<p class="empty">Sem recebimentos.</p>';
   return `<table class="table rtable">
-    <thead><tr><th>Recibo</th><th>Membro</th><th>Data</th><th>Forma</th><th>Entregue/enviado por · Ref.</th>${showReceiver ? '<th>Recebido por</th>' : ''}<th class="r">Valor</th></tr></thead>
+    <thead><tr><th>Recibo</th><th>Membro</th><th>Data</th><th>Forma de pagamento</th>${showReceiver ? '<th>Recebido por</th>' : ''}<th class="r">Valor</th></tr></thead>
     <tbody>${list.map((c) => {
       const m = people.get(c.membroId);
       const g = people.get(c.registadoPor);
-      return `<tr class="click" data-id="${c.id}" tabindex="0"><td class="num muted c-ref">${esc(c.ref)}${c.notificadoEm ? `<span class="cell-sent" title="Comprovativo enviado ao membro">${icon('check', 12)} Enviado</span>` : ''}</td><td class="c-mem"><span class="cell-name">${esc(m?.nome || '—')}</span>${m?.telefone ? `<span class="cell-sub num" style="display:block">${esc(phoneFmt(m.telefone))}</span>` : ''}</td><td class="c-date">${fmtDate(c.data)}<span class="m-only"> · ${METODOS[c.metodo]}</span></td><td class="c-met">${METODOS[c.metodo]}</td><td class="c-pay"><span>${esc(c.pagador || '—')}</span><span class="cell-sub num" style="display:block">${esc(c.referencia || 'sem referência')}</span></td>${showReceiver ? `<td class="c-rec"><span class="m-only">Recebido por </span>${esc(g?.nome || '—')}</td>` : ''}<td class="r cell-amount c-amt">${money(c.valor)}</td></tr>`;
+      return `<tr class="click" data-id="${c.id}" tabindex="0"><td class="num muted c-ref">${esc(c.ref)}${c.notificadoEm ? `<span class="cell-sent" title="Comprovativo enviado ao membro">${icon('check', 12)} Enviado</span>` : ''}</td><td class="c-mem"><span class="cell-name">${esc(m?.nome || '—')}</span>${m?.telefone ? `<span class="cell-sub num" style="display:block">${esc(phoneFmt(m.telefone))}</span>` : ''}</td><td class="c-date">${fmtDate(c.data)}<span class="m-only"> · ${METODOS[c.metodo]}</span></td><td class="c-met"><span class="cell-name">${c.metodo === 'banco' ? 'Transferência' : METODOS[c.metodo]}</span><span class="cell-sub" style="display:block">${esc(c.pagador || '—')}${c.referencia ? ` · <span class="num">${esc(c.referencia)}</span>` : ''}</span></td>${showReceiver ? `<td class="c-rec"><span class="m-only">Recebido por </span>${esc(g?.nome || '—')}</td>` : ''}<td class="r cell-amount c-amt">${money(c.valor)}</td></tr>`;
     }).join('')}</tbody></table>`;
 }
 
@@ -636,7 +636,7 @@ async function membros(ctx) {
       const rows = regs.filter(match);
       table = rows.length
         ? `<table class="table"><thead><tr><th>Pedido de</th><th>Telemóvel</th><th>Recebido</th><th class="r">Decisão</th></tr></thead><tbody>${rows.map((m) => `
-            <tr><td><div class="cell-person">${avatar(m, 32)}<span>${esc(m.nome)}</span></div></td><td class="num">+258 ${phoneFmt(m.telefone)}</td><td>${fmtDateTime(m.criadoEm)}</td>
+            <tr><td><span class="cell-name">${esc(m.nome)}</span></td><td class="num">+258 ${phoneFmt(m.telefone)}</td><td>${fmtDateTime(m.criadoEm)}</td>
             <td class="r"><div class="row-actions"><button type="button" class="btn btn-secondary btn-sm" data-reg="${m.id}" data-ok="0">Recusar</button><button type="button" class="btn btn-primary btn-sm" data-reg="${m.id}" data-ok="1">${icon('check', 16)} Aprovar</button></div></td></tr>`).join('')}</tbody></table>`
         : '<p class="empty">Não há pedidos por tratar.</p>';
     } else {
@@ -649,7 +649,7 @@ async function membros(ctx) {
             const action = admin
               ? `<button type="button" class="btn btn-ghost btn-sm" data-susp="${m.id}">${susp ? 'Reativar' : 'Suspender'}</button>`
               : `<button type="button" class="btn btn-secondary btn-sm" data-rec="${m.id}">${icon('plus-circle', 15)} Registar</button>`;
-            return `<tr class="click${susp ? ' is-muted' : ''}" data-id="${m.id}" tabindex="0"><td><div class="cell-person">${avatar(m, 32)}<span>${esc(m.nome)}</span></div></td><td class="num">+258 ${phoneFmt(m.telefone)}</td><td class="r">${s.n}</td><td class="r">${money(s.total)}</td><td class="${s.ultima ? '' : 'muted'}">${s.ultima ? fmtDate(s.ultima) : '—'}</td><td class="r">${action}</td></tr>`;
+            return `<tr class="click${susp ? ' is-muted' : ''}" data-id="${m.id}" tabindex="0"><td><span class="cell-name">${esc(m.nome)}</span></td><td class="num">+258 ${phoneFmt(m.telefone)}</td><td class="r">${s.n}</td><td class="r">${money(s.total)}</td><td class="${s.ultima ? '' : 'muted'}">${s.ultima ? fmtDate(s.ultima) : '—'}</td><td class="r">${action}</td></tr>`;
           }).join('')}</tbody></table>`
         : `<p class="empty">${tab === 'suspensos' ? 'Nenhum membro suspenso.' : q ? 'Nenhum membro corresponde à pesquisa.' : 'Ainda não há membros. Adicione o primeiro.'}</p>`;
     }
