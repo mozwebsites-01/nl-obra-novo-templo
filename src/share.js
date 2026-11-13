@@ -136,15 +136,33 @@ function richText(doc, pieces, x, y, width, size, lead, color) {
   return y + lead;
 }
 
-export async function receiptPdf(data) {
+// Documento PDF pronto a desenhar: jsPDF, Montserrat e o logótipo (partilhado com os relatórios)
+export const PDF_COLORS = { NAVY: [11, 16, 96], ORANGE: [217, 128, 10], INK: [20, 22, 43], MUTED: [104, 108, 128], LINE: [226, 228, 234], TINT: [236, 237, 246] };
+export async function newPdf(format = 'a4') {
   await loadLib();
   const { fonts, logo } = await loadAssets();
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'mm', format: 'a5', compress: true });
+  const doc = new jsPDF({ unit: 'mm', format, compress: true });
   for (const [w, b64] of fonts) {
     doc.addFileToVFS(`Montserrat-${w}.ttf`, b64);
     doc.addFont(`Montserrat-${w}.ttf`, 'Montserrat', w.toLowerCase());
   }
+  return { doc, logo };
+}
+
+// Descarrega um PDF (Blob) com o nome dado
+export function saveBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+export async function receiptPdf(data) {
+  const { doc, logo } = await newPdf('a5');
   const W = 148, M = 14;
   const font = (w, size, color = INK) => { doc.setFont('Montserrat', w); doc.setFontSize(size); doc.setTextColor(...color); };
 
@@ -224,14 +242,7 @@ export async function receiptPdf(data) {
 export const pdfName = (data) => `Recibo-${data.r}.pdf`;
 
 export async function downloadPdf(data) {
-  const blob = await receiptPdf(data);
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = pdfName(data);
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  saveBlob(await receiptPdf(data), pdfName(data));
 }
 
 // Partilha nativa do telemóvel (WhatsApp, etc.) com o PDF em anexo

@@ -13,6 +13,7 @@ import {
   phoneFmt, isValidPhone, isoDate, parseAmount, defaultPayer, firstName, periodRange, shiftPeriod,
 } from '../format.js';
 import { receiptData, whatsappLink, downloadPdf, sharePdf, canSharePdf } from '../share.js';
+import { downloadReportPdf } from '../reportpdf.js';
 
 // [chave, rótulo, ícone, rótulo curto para a barra inferior do telemóvel]
 const NAV_ADMIN = [
@@ -355,7 +356,7 @@ async function painel(ctx) {
   ]);
   const cur = series[series.length - 1];
   const geral = totals(all);
-  head(fmtLongToday(), 'Painel', '<a class="btn btn-secondary" href="#/a/relatorios">' + icon('printer', 18) + ' Relatórios</a>');
+  head(fmtLongToday(), 'Painel', '<a class="btn btn-secondary" href="#/a/relatorios">' + icon('file-text', 18) + ' Relatórios</a>');
 
   main.innerHTML = `
     <div class="dash">
@@ -426,7 +427,7 @@ async function inicio(ctx) {
         <dl class="saldo__periods">${period('Hoje', t.hoje)}${period('Esta semana', t.semana)}${period('Este mês', t.mes)}</dl>
         <div class="saldo__actions">
           <button type="button" class="btn btn-light" data-record-here>${icon('plus-circle', 18)} Registar contribuição</button>
-          <a class="btn btn-ghost-light" href="#/a/relatorios">${icon('printer', 18)} Relatório de hoje</a>
+          <a class="btn btn-ghost-light" href="#/a/relatorios">${icon('file-text', 18)} Relatório de hoje</a>
         </div>
       </section>
 
@@ -495,7 +496,7 @@ async function gestores(ctx) {
         </dl>
         <footer class="gestor__foot">
           <button type="button" class="btn btn-secondary btn-sm" data-see="${g.id}">Recebimentos</button>
-          <button type="button" class="btn btn-secondary btn-sm" data-report="${g.id}">${icon('printer', 15)} Relatório</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-report="${g.id}">${icon('file-text', 15)} Relatório</button>
           <button type="button" class="btn btn-ghost btn-sm" data-susp="${g.id}">${susp ? 'Reativar' : 'Suspender'}</button>
         </footer>
       </article>`;
@@ -518,7 +519,7 @@ function addGestorDialog(ctx) {
   const d = openDialog(`
     <header class="sheet__head"><h2>Adicionar gestor</h2><button class="icon-btn" data-close aria-label="Fechar">${icon('x')}</button></header>
     <form class="sheet__body" style="display:grid;gap:16px" novalidate>
-      <p class="muted small">O gestor pode registar membros, lançar os valores que recebe e imprimir relatórios. Vê apenas os seus próprios recebimentos.</p>
+      <p class="muted small">O gestor pode registar membros, lançar os valores que recebe e baixar relatórios em PDF. Vê apenas os seus próprios recebimentos.</p>
       <div class="field"><label for="g-nome">Nome completo</label><input class="input" id="g-nome" autocomplete="off"></div>
       <div class="field"><label for="g-tel">Telemóvel</label><div class="phone" style="height:44px"><span class="phone__prefix">+258</span><input id="g-tel" inputmode="numeric" placeholder="84 123 4567" style="font-size:15px"></div></div>
       <p class="error-text" data-error hidden></p>
@@ -759,7 +760,7 @@ async function relatorios(ctx) {
   sessionStorage.removeItem('nl.gestor');
 
   head('Relatórios', 'Relatório de recebimentos',
-    `<button type="button" class="btn btn-secondary" data-export>${icon('download', 18)} Exportar CSV</button><button type="button" class="btn btn-primary" data-print>${icon('printer', 18)} Imprimir</button>`);
+    `<button type="button" class="btn btn-secondary" data-export>${icon('download', 18)} Exportar CSV</button><button type="button" class="btn btn-primary" data-pdf-report>${icon('download', 18)} Baixar PDF</button>`);
 
   const current = () => {
     const r = periodRange(st.kind, st.anchor);
@@ -843,7 +844,33 @@ async function relatorios(ctx) {
     main.querySelector('[data-gestor]')?.addEventListener('change', (e) => { st.gestor = e.target.value; paint(); });
   };
 
-  document.querySelector('[data-print]').addEventListener('click', () => window.print());
+  // Relatório em PDF, com o mesmo conteúdo do ecrã
+  document.querySelector('[data-pdf-report]').addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    const { r, list } = current();
+    const total = sumv(list);
+    const whoLabel = st.gestor ? people.get(st.gestor)?.nome || '—' : 'Todos os gestores';
+    const showGestor = !st.gestor;
+    const repData = {
+      title: KIND_TITLE[st.kind], period: r.label, obra: settings.obraNome,
+      who: whoLabel, range: `${fmtDate(r.from)}${r.from !== r.to ? ` a ${fmtDate(r.to)}` : ''}`,
+      issuedAt: fmtDateTime(new Date().toISOString()), issuedBy: user.nome,
+      total, count: list.length, members: new Set(list.map((c) => c.membroId)).size, avg: list.length ? total / list.length : 0,
+      byGestor: admin && !st.gestor ? gestoresList.map((g) => {
+        const l = list.filter((c) => c.registadoPor === g.id);
+        return { nome: g.nome, n: l.length, v: sumv(l), pct: pct(total ? (sumv(l) / total) * 100 : 0) };
+      }) : [],
+      byMethod: Object.entries(METODOS).map(([k, l]) => { const x = list.filter((c) => c.metodo === k); return { l, n: x.length, v: sumv(x) }; }).filter((x) => x.n),
+      showGestor,
+      rows: list.map((c) => [fmtDateShort(c.data), c.ref, people.get(c.membroId)?.nome || '—', c.metodo === 'banco' ? 'Transferência' : METODOS[c.metodo],
+        ...(showGestor ? [people.get(c.registadoPor)?.nome || '—'] : []), money(c.valor)]),
+      signLeft: st.gestor ? whoLabel : 'Gestor responsável',
+      file: `Relatorio-${{ dia: 'diario', semana: 'semanal', mes: 'mensal' }[st.kind]}-${r.from}${st.gestor ? `-${(people.get(st.gestor)?.nome || '').split(' ')[0]}` : ''}.pdf`,
+    };
+    b.disabled = true;
+    try { await downloadReportPdf(repData); toast('Relatório descarregado em PDF'); } catch (ex) { toast(ex.message); }
+    b.disabled = false;
+  });
   document.querySelector('[data-export]').addEventListener('click', () => {
     const { r, list } = current();
     exportCsv(list, people, `relatorio-${st.kind}-${r.from}`);
