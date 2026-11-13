@@ -5,15 +5,14 @@
   position: relative; min-height: 100dvh; overflow: hidden; color: #fff; background: var(--navy-700);
   display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px 24px;
 }
-.login__photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 38%; animation: drift 24s var(--ease) both; }
-.login__veil { position: absolute; inset: 0; background: rgba(7, 11, 69, 0.42); }
-@keyframes drift { from { transform: scale(1.08); } to { transform: scale(1); } }
+/* Fundo azul-marinho liso com o símbolo NL em grande e discreto (o desenho não é alterado) */
+.login { background: var(--navy); }
+.login__watermark { position: absolute; right: -8vmin; bottom: -14vmin; width: 78vmin; height: auto; opacity: 0.06; pointer-events: none; user-select: none; }
 
 .login__card {
   position: relative; width: 100%; max-width: 420px; padding: 32px 32px 28px;
-  background: rgba(7, 11, 69, 0.72); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 22px;
-  -webkit-backdrop-filter: blur(18px) saturate(1.2); backdrop-filter: blur(18px) saturate(1.2);
-  box-shadow: 0 30px 80px rgba(3, 5, 30, 0.45);
+  background: var(--navy-700); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 22px;
+  box-shadow: 0 30px 80px rgba(3, 5, 30, 0.4);
   animation: card-in 600ms var(--ease) both;
 }
 @keyframes card-in { from { opacity: 0; transform: translateY(18px); } }
@@ -99,4 +98,5 @@
   .login__demo-item { grid-template-columns: auto 1fr; row-gap: 0; height: auto; padding: 10px 14px; }
   .login__demo-item span { grid-column: 2; }
 }
-@media (prefers-reduced-motion: reduce) { .login__photo, .login__card { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .login__card { animation: none; } }
+@media (max-width: 520px) { .login__watermark { width: 120vmin; right: -40vmin; bottom: -30vmin; } }
