@@ -37,6 +37,12 @@ Depois abra http://localhost:4173. Não há dependências para instalar (Node 18
   recibo de receção para imprimir) e imprimem relatórios diários, semanais e mensais.
   Cada gestor vê **apenas os seus recebimentos e o seu saldo acumulado**.
 - Relatórios: Relatórios › Diário / Semanal / Mensal › Imprimir (ou Exportar CSV).
+- **Comprovativo ao membro**: depois de registar (ou ao abrir qualquer recibo), o bloco
+  "Enviar comprovativo" abre o WhatsApp do membro com a mensagem de confirmação já escrita e a
+  ligação para o recibo; no telemóvel, "Partilhar PDF" anexa o próprio PDF. O membro abre a
+  ligação (página pública `#/recibo/…`, sem entrar no sistema) e descarrega o PDF. O envio fica
+  marcado como "Enviado" nos recebimentos. O PDF é gerado no navegador (jsPDF em
+  `assets/vendor/`, Montserrat em `assets/fonts/`, licença OFL).
 - **Entrada e saída**: a sessão fica só no separador aberto — fechar o separador ou a app,
   ou abrir o endereço noutra vez, pede sempre o PIN. O aparelho lembra apenas o número da última
   conta ("Olá, Rute" + PIN). Após 3 minutos sem atividade a sessão termina (aviso 30 s antes).

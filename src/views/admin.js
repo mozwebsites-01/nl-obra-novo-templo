@@ -12,6 +12,7 @@ import {
   METODOS, money, pct, fmtDate, fmtDateShort, fmtDateTime, fmtLongToday, monthKey, monthShort, monthLong,
   phoneFmt, isValidPhone, isoDate, parseAmount, defaultPayer, firstName, periodRange, shiftPeriod,
 } from '../format.js';
+import { receiptData, whatsappLink, downloadPdf, sharePdf, canSharePdf } from '../share.js';
 
 // [chave, rótulo, ícone, rótulo curto para a barra inferior do telemóvel]
 const NAV_ADMIN = [
@@ -149,13 +150,61 @@ function printDialog() {
   window.print();
 }
 
-async function receiptDialog(c, people) {
+// Enviar o comprovativo ao membro: WhatsApp com a mensagem pronta, PDF partilhado ou descarregado
+function deliverBox(c, data) {
+  const sent = c.notificadoEm
+    ? `<p class="deliver__sent">${icon('check', 14)} Enviado ${c.notificadoCanal === 'pdf' ? 'em PDF' : 'por WhatsApp'} em ${esc(fmtDateTime(c.notificadoEm))}</p>`
+    : '';
+  return `<section class="deliver" aria-label="Enviar comprovativo ao membro">
+    <div class="deliver__head">
+      <span class="deliver__icon">${icon('message-circle', 20)}</span>
+      <div><p class="deliver__title">Enviar comprovativo a ${esc(firstName(data.n))}</p>
+      <p class="muted small">Mensagem de confirmação e recibo em PDF para +258 ${esc(phoneFmt(data.t))}</p></div>
+    </div>
+    ${sent}
+    <div class="deliver__actions">
+      <a class="btn btn-primary" href="${esc(whatsappLink(data))}" target="_blank" rel="noopener" data-wa>${icon('send', 17)} ${c.notificadoEm ? 'Reenviar' : 'Enviar'} por WhatsApp</a>
+      ${canSharePdf() ? `<button type="button" class="btn btn-secondary" data-share>${icon('share', 17)} Partilhar PDF</button>` : ''}
+      <button type="button" class="btn btn-secondary" data-pdf>${icon('download', 17)} Descarregar PDF</button>
+    </div>
+  </section>`;
+}
+
+function wireDeliver(d, c, data, user) {
+  const mark = async (canal) => {
+    await store.markNotified(c.id, { por: user.id, canal });
+    d.dataset.changed = '1';
+    const box = d.querySelector('.deliver');
+    if (box) box.outerHTML = deliverBox({ ...c, notificadoEm: new Date().toISOString(), notificadoCanal: canal }, data);
+    wireDeliver(d, { ...c, notificadoEm: new Date().toISOString(), notificadoCanal: canal }, data, user);
+  };
+  d.querySelector('[data-wa]')?.addEventListener('click', () => { setTimeout(() => mark('whatsapp'), 300); toast('A abrir o WhatsApp com a mensagem pronta'); });
+  d.querySelector('[data-pdf]')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    try { await downloadPdf(data); toast(`PDF ${data.r} descarregado`); } catch (ex) { toast(ex.message); }
+    b.disabled = false;
+  });
+  d.querySelector('[data-share]')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    try { await sharePdf(data); await mark('pdf'); } catch (ex) { if (ex.name !== 'AbortError') toast(ex.message); }
+    b.disabled = false;
+  });
+}
+
+async function receiptDialog(c, people, user) {
+  user ||= await store.getSessionUser();
   const settings = await store.getSettings();
+  const member = people.get(c.membroId);
+  const reviewer = people.get(c.registadoPor || c.revistoPor);
+  const data = receiptData(c, { member, reviewer, settings });
+  const canSend = c.estado === 'confirmado' && member?.telefone && user;
   const d = openDialog(`
     <header class="sheet__head"><h2>Recibo ${esc(c.ref)}</h2><button class="icon-btn" data-close aria-label="Fechar">${icon('x')}</button></header>
-    <div class="sheet__scroll">${receipt(c, { member: people.get(c.membroId), reviewer: people.get(c.registadoPor || c.revistoPor), settings })}</div>
+    <div class="sheet__scroll">${canSend ? deliverBox(c, data) : ''}${receipt(c, { member, reviewer, settings })}</div>
     <div class="sheet__foot"><button type="button" class="btn btn-secondary" data-close>Fechar</button><button type="button" class="btn btn-primary" data-print>${icon('printer', 18)} Imprimir recibo</button></div>`);
   d.querySelector('[data-print]').addEventListener('click', printDialog);
+  if (canSend) wireDeliver(d, c, data, user);
+  d.addEventListener('close', () => { if (d.dataset.changed) navigate(location.hash); });
 }
 
 // Registar contribuição (gestor) ----------------------------------------------
@@ -242,12 +291,14 @@ async function recordDialog(ctx, preMemberId = '') {
       nota: $('#rec-n').value.trim(), registadoPor: ctx.user.id,
     });
     const settings = await store.getSettings();
-    // O diálogo passa a mostrar o recibo de receção, pronto a imprimir
+    // O diálogo passa a mostrar o recibo de receção e o envio do comprovativo ao membro
+    const rd = receiptData(c, { member: m, reviewer: ctx.user, settings });
     d.innerHTML = `
       <header class="sheet__head"><h2>Contribuição registada</h2><button class="icon-btn" data-close aria-label="Fechar">${icon('x')}</button></header>
-      <div class="sheet__scroll">${receipt(c, { member: m, reviewer: ctx.user, settings })}</div>
+      <div class="sheet__scroll">${deliverBox(c, rd)}${receipt(c, { member: m, reviewer: ctx.user, settings })}</div>
       <div class="sheet__foot"><button type="button" class="btn btn-secondary" data-again>Registar outra</button><button type="button" class="btn btn-primary" data-print>${icon('printer', 18)} Imprimir recibo</button></div>`;
     d.querySelector('[data-print]').addEventListener('click', printDialog);
+    wireDeliver(d, c, rd, ctx.user);
     d.querySelector('[data-again]').addEventListener('click', () => { d.close(); recordDialog(ctx); });
     d.addEventListener('close', () => ctx.refresh(), { once: true });
     toast(`Recibo ${c.ref} emitido · ${money(c.valor)}`);
@@ -360,7 +411,7 @@ function receiptsTable(list, people, { showReceiver = false } = {}) {
     <tbody>${list.map((c) => {
       const m = people.get(c.membroId);
       const g = people.get(c.registadoPor);
-      return `<tr class="click" data-id="${c.id}" tabindex="0"><td class="num muted">${esc(c.ref)}</td><td><div class="cell-person">${avatar(m, 30)}<span>${esc(m?.nome || '—')}</span></div></td><td>${fmtDate(c.data)}</td><td>${METODOS[c.metodo]}</td><td><span>${esc(c.pagador || '—')}</span><span class="cell-sub num" style="display:block">${esc(c.referencia || 'sem referência')}</span></td>${showReceiver ? `<td>${esc(g?.nome || '—')}</td>` : ''}<td class="r">${money(c.valor)}</td></tr>`;
+      return `<tr class="click" data-id="${c.id}" tabindex="0"><td class="num muted">${esc(c.ref)}${c.notificadoEm ? `<span class="cell-sent" title="Comprovativo enviado ao membro">${icon('check', 12)} Enviado</span>` : ''}</td><td><div class="cell-person">${avatar(m, 30)}<span>${esc(m?.nome || '—')}</span></div></td><td>${fmtDate(c.data)}</td><td>${METODOS[c.metodo]}</td><td><span>${esc(c.pagador || '—')}</span><span class="cell-sub num" style="display:block">${esc(c.referencia || 'sem referência')}</span></td>${showReceiver ? `<td>${esc(g?.nome || '—')}</td>` : ''}<td class="r">${money(c.valor)}</td></tr>`;
     }).join('')}</tbody></table>`;
 }
 

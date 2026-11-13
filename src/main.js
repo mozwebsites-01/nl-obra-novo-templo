@@ -1,6 +1,7 @@
 import * as store from './store.js';
 import { renderLogin } from './views/login.js';
 import { renderAdmin } from './views/admin.js';
+import { renderPublicReceipt } from './views/recibo.js';
 import { initInstall } from './install.js';
 import { icon, openDialog } from './ui.js';
 
@@ -76,6 +77,8 @@ document.addEventListener('visibilitychange', async () => {
 
 async function route() {
   const hash = location.hash.slice(1) || '/';
+  // Recibo aberto pelo membro a partir do WhatsApp: público, sem sessão
+  if (hash.startsWith('/recibo/')) return renderPublicReceipt(app, hash.slice('/recibo/'.length));
   const user = await store.getSessionUser();
   // Painel do membro em pausa: só existe a área de administração (admin e gestores)
   const home = user?.role === 'admin' ? '#/a/painel' : '#/a/inicio';

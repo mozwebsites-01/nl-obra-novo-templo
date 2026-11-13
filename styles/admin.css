@@ -463,3 +463,31 @@ dialog.sheet[open] { display: flex; }
 .idle-warn h2 { font-size: 18px; }
 .idle-warn__icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--tint); color: var(--navy); margin-bottom: 4px; }
 .idle-warn__count { font-size: 32px; font-weight: 700; color: var(--navy); letter-spacing: -0.02em; margin-top: 4px; }
+
+/* Enviar comprovativo ao membro */
+.deliver { margin: 20px 24px 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #FAFAFB; }
+.deliver__head { display: flex; gap: 12px; align-items: flex-start; }
+.deliver__icon { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--tint); color: var(--navy); }
+.deliver__title { font-size: 14px; font-weight: 700; }
+.deliver__sent { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 12px; font-weight: 600; color: var(--navy); }
+.deliver__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.deliver__actions .btn { height: 40px; font-size: 13px; }
+.deliver__actions .btn[disabled] { opacity: 0.6; pointer-events: none; }
+.cell-sent { display: flex; align-items: center; gap: 3px; margin-top: 3px; font-size: 11px; font-weight: 600; color: var(--navy); font-family: var(--font); letter-spacing: 0; }
+@media (max-width: 760px) { .deliver { margin: 16px 16px 0; } .deliver__actions .btn { flex: 1 1 100%; } }
+@media print { .deliver { display: none !important; } }
+
+/* Página pública do recibo (aberta pelo membro) */
+.is-public { background: var(--bg); }
+.pub { min-height: 100vh; display: flex; flex-direction: column; }
+.pub__top { background: var(--navy); padding: 22px 20px 64px; display: flex; justify-content: center; border-bottom: 3px solid var(--orange); }
+.pub__wrap { width: 100%; max-width: 480px; margin: -44px auto 0; padding: 0 16px; flex: 1; }
+.pub__hello { color: #fff; font-size: 14px; font-weight: 500; text-align: center; margin: -10px 0 14px; }
+.pub__card { overflow: hidden; }
+.pub__actions { display: grid; gap: 10px; margin-top: 16px; }
+.pub__thanks { margin-top: 20px; text-align: center; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.pub__bad { padding: 28px 24px; text-align: center; }
+.pub__bad h1 { font-size: 18px; margin-bottom: 8px; }
+.pub__foot { text-align: center; font-size: 12px; color: var(--ink-2); padding: 28px 16px; }
+@media print { .pub__top, .pub__actions, .pub__thanks, .pub__foot, .pub__hello { display: none; } .pub__wrap { margin: 0 auto; } }
+@media (max-width: 520px) { .sheet__foot { padding: 14px 16px; } .sheet__foot .btn { flex: 1 1 0; min-width: 0; padding-inline: 10px; } }

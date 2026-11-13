@@ -387,6 +387,17 @@ export async function recordContribution({ membroId, valor, metodo, referencia, 
   return c;
 }
 
+// O comprovativo foi enviado ao membro (WhatsApp ou partilha do PDF)
+export async function markNotified(id, { por, canal }) {
+  const c = db.contributions.find((x) => x.id === id);
+  if (!c) return null;
+  c.notificadoEm = new Date().toISOString();
+  c.notificadoPor = por;
+  c.notificadoCanal = canal;
+  save();
+  return c;
+}
+
 export async function declareContribution({ membroId, valor, metodo, referencia, pagador, data, nota, comprovativo }) {
   db.seq = (db.seq || db.contributions.length) + 1;
   const now = new Date();
