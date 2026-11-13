@@ -5,14 +5,14 @@
   position: relative; min-height: 100dvh; overflow: hidden; color: #fff; background: var(--navy-700);
   display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px 24px;
 }
-/* Fundo azul-marinho liso com o símbolo NL em grande e discreto (o desenho não é alterado) */
-.login { background: var(--navy); }
-.login__watermark { position: absolute; right: -8vmin; bottom: -14vmin; width: 78vmin; height: auto; opacity: 0.06; pointer-events: none; user-select: none; }
+/* Fundo branco com o símbolo NL em grande e discreto (o desenho não é alterado) */
+.login { background: #fff; }
+.login__watermark { position: absolute; right: -8vmin; bottom: -14vmin; width: 78vmin; height: auto; opacity: 0.045; pointer-events: none; user-select: none; }
 
 .login__card {
   position: relative; width: 100%; max-width: 420px; padding: 32px 32px 28px;
   background: var(--navy-700); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 22px;
-  box-shadow: 0 30px 80px rgba(3, 5, 30, 0.4);
+  box-shadow: 0 24px 60px rgba(11, 16, 96, 0.22);
   animation: card-in 600ms var(--ease) both;
 }
 @keyframes card-in { from { opacity: 0; transform: translateY(18px); } }
@@ -26,7 +26,7 @@
 .login__form label { color: rgba(255, 255, 255, 0.86); font-size: 13px; font-weight: 500; }
 .login__form .btn { height: 50px; border-radius: 12px; font-size: 15px; font-weight: 600; background: #F6F6F4; color: var(--navy); border: 0; }
 .login__form .btn:hover { background: #fff; }
-.login__foot { position: relative; margin-top: 20px; max-width: 420px; text-align: center; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+.login__foot { position: relative; margin-top: 20px; max-width: 420px; text-align: center; font-size: 13px; color: var(--ink-2); }
 .login__input { height: 50px; border-radius: 12px; }
 .login__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .login__status { text-align: center; }

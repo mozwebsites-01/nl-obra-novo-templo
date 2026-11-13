@@ -19,7 +19,7 @@ export async function renderLogin(root) {
 
   root.innerHTML = `
     <main class="login">
-      <img class="login__watermark" src="assets/brand/mark-white.svg" alt="" aria-hidden="true">
+      <img class="login__watermark" src="assets/brand/mark-navy.svg" alt="" aria-hidden="true">
 
       <section class="login__card" aria-label="Entrar">
         <img class="login__logo" src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="150" height="66">
