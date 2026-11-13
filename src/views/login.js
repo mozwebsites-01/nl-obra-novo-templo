@@ -20,7 +20,7 @@ export async function renderLogin(root) {
   root.innerHTML = `
     <main class="login">
       <section class="login__main">
-        <div class="login__top"><img src="assets/brand/logo-lockup-navy.svg" alt="Nataniel Litsure Ministries" width="100" height="44"><span>${esc(settings.obraNome)}</span></div>
+        <div class="login__top"><span>Nataniel Litsure Ministries</span><span>Acesso reservado</span></div>
         <div class="login__inner">
           ${NOTICE[reason] ? `<p class="login__notice" role="status">${icon(NOTICE[reason][0], 16)}<span>${NOTICE[reason][1]}</span></p>` : ''}
           <div aria-live="polite" data-step></div>
@@ -36,13 +36,12 @@ export async function renderLogin(root) {
         <p class="login__foot">Protótipo · os dados ficam guardados apenas neste navegador.</p>
       </section>
       <aside class="login__brand">
-        <div>
-          <img class="login__brand-logo" src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="220" height="96">
-          <p class="login__eyebrow">${esc(settings.obraNome)}</p>
-        </div>
-        <div class="login__brand-copy">
-          <h2>Cada contribuição, registada com transparência.</h2>
-          <p>Os gestores registam cada valor recebido e emitem o recibo. A administração acompanha o total de cada gestor e o total geral da obra.</p>
+        <img class="login__photo" src="assets/img/novo-templo.jpg" alt="" aria-hidden="true">
+        <img class="login__brand-logo" src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="196" height="86">
+        <div class="login__plate">
+          <p class="login__plate-k">Tesouraria</p>
+          <h2>${esc(settings.obraNome)}</h2>
+          <p>Registo de contribuições, emissão de recibos e relatórios diários, semanais e mensais.</p>
         </div>
       </aside>
     </main>`;

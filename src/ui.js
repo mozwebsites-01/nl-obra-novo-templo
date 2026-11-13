@@ -1,7 +1,7 @@
 // Componentes de apresentação partilhados (strings HTML) e pequenos utilitários de DOM.
 import { ICONS } from './icons.js';
 import {
-  ESTADOS, METODOS, money, moneyCompact, monthLong, fmtDate, fmtDateTime, initials, phoneFmt,
+  ESTADOS, METODOS, money, moneyCompact, monthLong, fmtDate, fmtDateTime, initials, phoneFmt, porExtenso,
 } from './format.js';
 
 export const esc = (s) =>
@@ -27,14 +27,22 @@ export function progress(p) {
   return `<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${v.toFixed(1)}"><div class="progress__fill" style="width:${v}%"></div></div>`;
 }
 
+// Escala "redonda" para o eixo (1; 1,5; 2; 2,5; 3; 4; 5; 6; 8 × 10^n)
+function niceMax(v) {
+  if (v <= 0) return 1;
+  const p = 10 ** Math.floor(Math.log10(v));
+  return [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => m * p).find((m) => m >= v);
+}
+
+// Gráfico de barras com eixo e linhas de grelha (sem valores em cima de cada barra).
 // private: só alturas relativas, sem montantes (vista do membro)
-export function barChart(series, { height = 160, showValues = false, private: priv = false } = {}) {
-  const max = Math.max(...series.map((s) => s.value), 1);
-  return `<div class="chart" style="height:${height}px" role="img" aria-label="${priv ? 'Evolução mensal das contribuições' : 'Valores confirmados por mês'}">${series
+export function barChart(series, { height = 160, private: priv = false } = {}) {
+  const top = niceMax(Math.max(...series.map((s) => s.value), 1));
+  const axis = priv ? '' : `<div class="chart__axis" aria-hidden="true"><span>${moneyCompact(top)}</span><span>${moneyCompact(top / 2)}</span><span>0</span></div>`;
+  return `<div class="chart${priv ? '' : ' chart--axis'}" style="height:${height}px" role="img" aria-label="${priv ? 'Evolução mensal das contribuições' : 'Valores recebidos por mês'}">${axis}${series
     .map(
       (s) => `<div class="chart__col${s.current ? ' is-current' : ''}" title="${esc(monthLong(s.key))}${priv ? '' : `: ${esc(money(s.value))}`}">
-        ${showValues ? `<span class="chart__val num">${s.value ? moneyCompact(s.value) : '—'}</span>` : ''}
-        <div class="chart__track"><div class="chart__bar" style="height:${((s.value / max) * 100).toFixed(1)}%"></div></div>
+        <div class="chart__track"><div class="chart__bar" style="height:${((s.value / top) * 100).toFixed(1)}%"></div></div>
         <span class="chart__label">${esc(s.label)}</span>
       </div>`,
     )
@@ -71,18 +79,36 @@ export function receipt(c, { member, reviewer, settings, showProof = false }) {
     else proof = `<div class="receipt__proof"><p class="eyebrow" style="margin-bottom:8px">Comprovativo</p><p class="small muted">O membro não anexou comprovativo.</p></div>`;
   }
 
+  // Texto do recibo, como num recibo em papel: quem pagou e a quantia por extenso
+  const words = c.estado === 'confirmado'
+    ? `<p class="receipt__words">Recebemos de <strong>${esc(member?.nome || '—')}</strong> a quantia de <strong>${esc(porExtenso(c.valor))}</strong>, referente à contribuição para a ${esc(settings.obraNome)}.</p>`
+    : `<p class="receipt__words muted">Contribuição para a ${esc(settings.obraNome)}.</p>`;
   return `<article class="receipt">
     <header class="receipt__head">
       <img class="receipt__mark" src="assets/brand/mark-navy.svg" alt="">
-      <div><p class="eyebrow">${c.registadoPor ? 'Recibo de receção' : 'Recibo de contribuição'}</p><p class="receipt__ref">${esc(c.ref)}</p></div>
-      ${status(c.estado)}
+      <div class="receipt__org"><p>Nataniel Litsure Ministries</p><p>${c.registadoPor ? 'Recibo de receção' : 'Recibo de contribuição'}</p></div>
+      <div class="receipt__no"><span>N.º</span><strong class="num">${esc(c.ref)}</strong></div>
     </header>
-    <div class="receipt__amount"><span class="display-num">${money(c.valor, { unit: false })}</span><span class="receipt__unit">MT</span></div>
-    <p class="receipt__dest muted">${esc(settings.obraNome)}</p>
+    <div class="receipt__amount"><span class="receipt__cur">MT</span><span class="display-num">${money(c.valor, { unit: false })}</span>${status(c.estado)}</div>
+    ${words}
     <dl class="receipt__rows">${rows.join('')}</dl>
     ${note ? `<p class="receipt__note">${note}</p>` : ''}
     ${proof}
   </article>`;
+}
+
+// Régua da obra: a meta dividida em cinco troços, com marcas a cada 5% e o ponto atual
+export function ruler(value, meta) {
+  const p = meta ? Math.max(0, Math.min(100, (value / meta) * 100)) : 0;
+  const scale = (v) => (v >= 1e6 ? `${(v / 1e6).toLocaleString('pt-PT', { maximumFractionDigits: 2 })} M` : moneyCompact(v));
+  const ticks = Array.from({ length: 21 }, (_, i) => `<i class="${i % 4 === 0 ? 'is-major' : ''}" style="left:${i * 5}%"></i>`).join('');
+  const labels = Array.from({ length: 6 }, (_, i) => `<span style="left:${i * 20}%">${scale((meta * i) / 5)}</span>`).join('');
+  const pctTxt = `${p.toFixed(1).replace('.', ',')}%`;
+  return `<div class="ruler" role="img" aria-label="${pctTxt} da meta">
+    <div class="ruler__track"><div class="ruler__fill" style="width:${p}%"></div><span class="ruler__mark${p > 85 ? ' is-end' : ''}" style="left:${p}%"><b>${pctTxt}</b></span></div>
+    <div class="ruler__ticks">${ticks}</div>
+    <div class="ruler__scale">${labels}</div>
+  </div>`;
 }
 
 let toastTimer;

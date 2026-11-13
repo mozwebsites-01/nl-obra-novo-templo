@@ -2,7 +2,7 @@
 //
 // Sem servidor partilhado, o recibo viaja dentro da própria ligação (#/recibo/<dados>):
 // quem a abre vê o recibo e descarrega o PDF, sem precisar de entrar no sistema.
-import { METODOS, money, fmtDate, fmtDateTime, phoneFmt, firstName } from './format.js';
+import { METODOS, money, fmtDate, fmtDateTime, phoneFmt, firstName, porExtenso } from './format.js';
 
 // Dados mínimos do recibo ---------------------------------------------------
 export function receiptData(c, { member, reviewer, settings }) {
@@ -119,6 +119,23 @@ const MUTED = [104, 108, 128];
 const LINE = [226, 228, 234];
 const TINT = [236, 237, 246];
 
+// Parágrafo com partes em negrito, quebrado palavra a palavra na largura dada
+function richText(doc, pieces, x, y, width, size, lead, color) {
+  doc.setFontSize(size); doc.setTextColor(...color);
+  const words = pieces.flatMap(([w, t]) => t.split(/(\s+)/).filter(Boolean).map((p) => [w, p]));
+  let cx = x;
+  for (const [w, p] of words) {
+    doc.setFont('Montserrat', w);
+    const pw = doc.getTextWidth(p);
+    if (/^\s+$/.test(p)) { if (cx > x) cx += pw; continue; }
+    // A pontuação fica sempre colada à palavra anterior
+    if (cx + pw > x + width && cx > x && !/^[,.;:]/.test(p)) { y += lead; cx = x; }
+    doc.text(p, cx, y);
+    cx += pw;
+  }
+  return y + lead;
+}
+
 export async function receiptPdf(data) {
   await loadLib();
   const { fonts, logo } = await loadAssets();
@@ -144,31 +161,31 @@ export async function receiptPdf(data) {
   font('regular', 7, [200, 203, 230]);
   doc.text(data.o, W - M, 29.5, { align: 'right' });
 
-  // Valor
-  let y = 60;
-  font('semibold', 6.5, MUTED);
-  doc.text('VALOR RECEBIDO', M, y, { charSpace: 0.5 });
-  const amount = money(data.v, { unit: false });
-  font('bold', 24, NAVY);
-  doc.text(amount, M, y + 11);
-  const aw = doc.getTextWidth(amount);
-  font('semibold', 11, MUTED);
-  doc.text('MT', M + aw + 2, y + 11);
-
-  // Selo "Confirmado"
+  // Valor numa caixa, como num recibo em papel, e o selo de confirmação
+  let y = 56;
+  doc.setDrawColor(...LINE); doc.setLineWidth(0.3);
+  doc.roundedRect(M, y, W - 2 * M, 17, 1.5, 1.5, 'S');
+  font('semibold', 8, MUTED);
+  doc.text('MT', M + 5, y + 10.6);
+  font('semibold', 19, NAVY);
+  doc.text(money(data.v, { unit: false }), M + 13, y + 11.2);
   font('semibold', 7.5, NAVY);
   const tag = 'Pagamento confirmado';
   const tw = doc.getTextWidth(tag) + 10;
-  doc.setFillColor(...TINT); doc.roundedRect(W - M - tw, y + 3.5, tw, 8, 4, 4, 'F');
-  doc.setFillColor(...ORANGE); doc.circle(W - M - tw + 4.2, y + 7.5, 1, 'F');
-  doc.text(tag, W - M - tw + 7, y + 8.6);
+  doc.setFillColor(...TINT); doc.roundedRect(W - M - 4 - tw, y + 4.5, tw, 8, 4, 4, 'F');
+  doc.setFillColor(...ORANGE); doc.circle(W - M - 4 - tw + 4.2, y + 8.5, 1, 'F');
+  doc.text(tag, W - M - 4 - tw + 7, y + 9.6);
 
-  font('regular', 8.5, MUTED);
-  doc.text(`Contribuição para a ${data.o}`, M, y + 18);
+  // Texto do recibo com a quantia por extenso
+  y += 26;
+  const pieces = [
+    ['regular', 'Recebemos de '], ['semibold', data.n], ['regular', ' a quantia de '],
+    ['semibold', porExtenso(data.v)], ['regular', `, referente à contribuição para a ${data.o}.`],
+  ];
+  y = richText(doc, pieces, M, y, W - 2 * M, 9.5, 5, INK) + 4;
 
   // Linhas do recibo
-  y += 27;
-  doc.setDrawColor(...LINE); doc.setLineDashPattern([1, 1], 0); doc.line(M, y, W - M, y); doc.setLineDashPattern([], 0);
+  doc.setDrawColor(...LINE); doc.line(M, y, W - M, y);
   const rows = [
     ['Membro', data.n],
     ['Telemóvel', data.t || data.tm ? `+258 ${phoneFmt(data.t || data.tm)}` : '—'],
@@ -196,7 +213,7 @@ export async function receiptPdf(data) {
   font('regular', 8, MUTED);
   doc.text('Que Deus abençoe a sua generosidade.', W / 2, y + 5, { align: 'center' });
   font('regular', 6.5, MUTED);
-  doc.text(`Documento emitido eletronicamente por Nataniel Litsure Ministries em ${fmtDateTime(new Date().toISOString())}.`, W / 2, 198, { align: 'center' });
+  doc.text(`Processado por computador · Nataniel Litsure Ministries · ${fmtDateTime(new Date().toISOString())}`, W / 2, 198, { align: 'center' });
   font('semibold', 6.5, NAVY);
   const link = 'Ver este recibo online';
   doc.textWithLink(link, (W - doc.getTextWidth(link)) / 2, 202.5, { url: receiptUrl(data) });

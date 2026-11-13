@@ -6,7 +6,7 @@
 // O painel do membro está em pausa: os membros não entram no sistema.
 import * as store from '../store.js';
 import {
-  esc, icon, avatar, progress, barChart, receipt, toast, openDialog, confirmDialog, navigate,
+  esc, icon, avatar, progress, ruler, barChart, receipt, toast, openDialog, confirmDialog, navigate,
 } from '../ui.js';
 import {
   METODOS, money, pct, fmtDate, fmtDateShort, fmtDateTime, fmtLongToday, monthKey, monthShort, monthLong,
@@ -86,7 +86,7 @@ export async function renderAdmin(root, page, user, param) {
         <div class="a-side__foot">
           ${mine ? `<div class="side-saldo"><p>O seu saldo acumulado</p><p class="side-saldo__v num">${money(mine.total.valor, { decimals: false })}</p></div>` : ''}
           ${isAdmin(user) ? `<button type="button" class="a-side__ghost" data-act="reset">${icon('rotate-ccw', 16)}<span>Repor demonstração</span>${icon('chevron-right', 14)}</button>` : ''}
-          <p class="a-side__ver">Protótipo · v0.5</p>
+          <p class="a-side__ver">Protótipo · v0.6</p>
         </div>
       </aside>
       <div class="a-main">
@@ -319,15 +319,15 @@ async function painel(ctx) {
   main.innerHTML = `
     <div class="dash">
       <section class="card obra-card" aria-label="Progresso da obra">
-        <div class="card-head" style="margin-bottom:0"><p class="eyebrow">Total geral · ${esc(settings.obraNome)}</p><a href="#/a/obra" class="link small">Editar meta</a></div>
+        <div class="card-head" style="margin-bottom:0"><p class="eyebrow">Total angariado · ${esc(settings.obraNome)}</p><a href="#/a/obra" class="link small">Editar meta</a></div>
         <div class="obra-card__amount"><span class="display-num">${money(s.arrecadado, { decimals: false, unit: false })}</span><span class="unit">MT</span></div>
-        <p class="obra-card__of muted">arrecadados de <span class="num">${money(s.meta, { decimals: false })}</span> · <strong class="num accent">${pct(s.pct)}</strong></p>
-        ${progress(s.pct)}
+        <p class="obra-card__of muted">Meta de <span class="num">${money(s.meta, { decimals: false })}</span> · faltam <span class="num">${money(s.falta, { decimals: false })}</span></p>
+        ${ruler(s.arrecadado, s.meta)}
         <dl class="stats">
           <div><dt>Recebido hoje</dt><dd>${money(geral.hoje.valor, { decimals: false })}</dd></div>
           <div><dt>Esta semana</dt><dd>${money(geral.semana.valor, { decimals: false })}</dd></div>
           <div><dt>Este mês</dt><dd>${money(geral.mes.valor, { decimals: false })}</dd></div>
-          <div><dt>Por angariar</dt><dd>${money(s.falta, { decimals: false })}</dd></div>
+          <div><dt>Recibos emitidos</dt><dd>${geral.total.n}</dd></div>
         </dl>
       </section>
 
@@ -337,7 +337,7 @@ async function painel(ctx) {
           const t = totals(all.filter((c) => c.registadoPor === g.id));
           const share = s.arrecadado ? (t.total.valor / s.arrecadado) * 100 : 0;
           return `<div class="split__row">
-            <div class="split__who">${avatar(g, 32)}<div><p class="split__name">${esc(g.nome)}</p><p class="muted small">hoje ${money(t.hoje.valor, { decimals: false })}</p></div></div>
+            <div class="split__who"><div><p class="split__name">${esc(g.nome)}</p><p class="muted small">hoje ${money(t.hoje.valor, { decimals: false })}</p></div></div>
             <div class="split__val"><p class="num">${money(t.total.valor, { decimals: false })}</p><p class="muted small num">${pct(share)}</p></div>
             <div class="split__bar"><div style="width:${share.toFixed(1)}%"></div></div>
           </div>`;
@@ -348,7 +348,7 @@ async function painel(ctx) {
 
       <section class="card pad">
         <div class="card-head"><p class="eyebrow">Evolução mensal</p><p class="muted small num">${cur ? `${money(cur.value, { decimals: false })} em ${monthLong(cur.key)} · ${cur.contribuintes} contribuintes` : ''}</p></div>
-        ${barChart(series, { height: 220, showValues: true })}
+        ${barChart(series, { height: 220 })}
       </section>
 
       <section class="card pad">
@@ -373,13 +373,13 @@ async function inicio(ctx) {
   const [mine, people] = await Promise.all([visibleReceipts(user), peopleMap()]);
   const t = totals(mine);
   const first = mine.length ? mine[mine.length - 1].data : null;
-  head(fmtLongToday(), `Olá, ${firstName(user.nome)}`);
+  head(fmtLongToday(), 'Início');
 
   const period = (lbl, x) => `<div><dt>${lbl}</dt><dd class="num">${money(x.valor, { decimals: false })}</dd><dd class="muted small">${x.n} ${x.n === 1 ? 'recebimento' : 'recebimentos'}</dd></div>`;
   main.innerHTML = `
     <div class="g-home">
       <section class="card saldo" aria-label="O seu saldo acumulado">
-        <p class="eyebrow saldo__eyebrow">O seu saldo acumulado</p>
+        <div class="saldo__top"><p class="eyebrow saldo__eyebrow">Saldo acumulado</p><p class="saldo__acct">${esc(user.nome)} · ${esc(user.cargo || 'Gestor')}</p></div>
         <p class="saldo__value"><span class="display-num">${money(t.total.valor, { decimals: false, unit: false })}</span><span class="unit">MT</span></p>
         <p class="saldo__sub">${t.total.n ? `Recebido por si em ${t.total.n} ${t.total.n === 1 ? 'contribuição' : 'contribuições'}${first ? `, desde ${fmtDate(first)}` : ''}.` : 'Ainda não registou recebimentos.'}</p>
         <dl class="saldo__periods">${period('Hoje', t.hoje)}${period('Esta semana', t.semana)}${period('Este mês', t.mes)}</dl>
@@ -391,7 +391,7 @@ async function inicio(ctx) {
 
       <section class="card pad">
         <div class="card-head"><p class="eyebrow">Os seus recebimentos por mês</p></div>
-        ${barChart(monthlyOf(mine), { height: 180, showValues: true })}
+        ${barChart(monthlyOf(mine), { height: 200 })}
       </section>
 
       <section class="card dash__wide table-card g-home__wide">
@@ -411,7 +411,7 @@ function receiptsTable(list, people, { showReceiver = false } = {}) {
     <tbody>${list.map((c) => {
       const m = people.get(c.membroId);
       const g = people.get(c.registadoPor);
-      return `<tr class="click" data-id="${c.id}" tabindex="0"><td class="num muted">${esc(c.ref)}${c.notificadoEm ? `<span class="cell-sent" title="Comprovativo enviado ao membro">${icon('check', 12)} Enviado</span>` : ''}</td><td><div class="cell-person">${avatar(m, 30)}<span>${esc(m?.nome || '—')}</span></div></td><td>${fmtDate(c.data)}</td><td>${METODOS[c.metodo]}</td><td><span>${esc(c.pagador || '—')}</span><span class="cell-sub num" style="display:block">${esc(c.referencia || 'sem referência')}</span></td>${showReceiver ? `<td>${esc(g?.nome || '—')}</td>` : ''}<td class="r">${money(c.valor)}</td></tr>`;
+      return `<tr class="click" data-id="${c.id}" tabindex="0"><td class="num muted">${esc(c.ref)}${c.notificadoEm ? `<span class="cell-sent" title="Comprovativo enviado ao membro">${icon('check', 12)} Enviado</span>` : ''}</td><td><span class="cell-name">${esc(m?.nome || '—')}</span>${m?.telefone ? `<span class="cell-sub num" style="display:block">${esc(phoneFmt(m.telefone))}</span>` : ''}</td><td>${fmtDate(c.data)}</td><td>${METODOS[c.metodo]}</td><td><span>${esc(c.pagador || '—')}</span><span class="cell-sub num" style="display:block">${esc(c.referencia || 'sem referência')}</span></td>${showReceiver ? `<td>${esc(g?.nome || '—')}</td>` : ''}<td class="r cell-amount">${money(c.valor)}</td></tr>`;
     }).join('')}</tbody></table>`;
 }
 

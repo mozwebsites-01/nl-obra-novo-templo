@@ -491,3 +491,36 @@ dialog.sheet[open] { display: flex; }
 .pub__foot { text-align: center; font-size: 12px; color: var(--ink-2); padding: 28px 16px; }
 @media print { .pub__top, .pub__actions, .pub__thanks, .pub__foot, .pub__hello { display: none; } .pub__wrap { margin: 0 auto; } }
 @media (max-width: 520px) { .sheet__foot { padding: 14px 16px; } .sheet__foot .btn { flex: 1 1 0; min-width: 0; padding-inline: 10px; } }
+
+/* Acabamento institucional: cantos retos e consistentes (cartões 10px, controlos 8px) */
+.a-content .card { border-radius: 10px; border-color: var(--line); box-shadow: none; }
+.a-nav a { border-radius: 6px; }
+.a-search input { border-radius: 8px; }
+.a-top__actions .btn, .a-bar__cta, .btn-light, .btn-ghost-light { border-radius: 8px; }
+.a-out { border-radius: 8px; }
+.side-saldo { border-radius: 8px; }
+.rec-chips button { border-radius: 6px; }
+.seg { border-radius: 8px; }
+.deliver { border-radius: 10px; }
+.report__kpis { border-radius: 8px; }
+.a-top h1 { font-weight: 600; letter-spacing: -0.015em; }
+
+/* Painel: o total em destaque, mais sóbrio */
+.obra-card__amount .display-num { font-weight: 600; letter-spacing: -0.025em; }
+.stats dd { font-weight: 600; }
+
+/* Cartão de saldo do gestor: sem ornamentos */
+.saldo { border-radius: 10px; }
+.saldo::after { content: none; }
+.saldo__top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.saldo .saldo__eyebrow { color: rgba(255, 255, 255, 0.78); }
+.saldo__acct { font-size: 12.5px; color: rgba(255, 255, 255, 0.55); text-align: right; }
+.saldo__value .display-num { font-weight: 600; letter-spacing: -0.025em; }
+.saldo__periods dd:nth-of-type(1) { font-weight: 600; }
+
+/* Tabelas de recebimentos */
+.cell-name { font-weight: 500; }
+.cell-amount { font-weight: 600; white-space: nowrap; }
+.split__val p:first-child { font-weight: 600; }
+@media (max-width: 760px) { .saldo__acct { display: none; } }
+@media (max-width: 760px) { .saldo [data-record-here] { display: none; } }

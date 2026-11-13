@@ -125,3 +125,42 @@ export function shiftPeriod(kind, anchor, step) {
   else d.setDate(d.getDate() + step * (kind === 'semana' ? 7 : 1));
   return isoDate(d);
 }
+
+// Valor por extenso, como nos recibos: 2500 → "dois mil e quinhentos meticais"
+const UNID = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze', 'treze', 'catorze', 'quinze', 'dezasseis', 'dezassete', 'dezoito', 'dezanove'];
+const DEZ = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+const CEM = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+
+function ate999(n) {
+  if (n === 100) return 'cem';
+  const c = Math.floor(n / 100), r = n % 100;
+  const partes = [];
+  if (c) partes.push(CEM[c]);
+  if (r) partes.push(r < 20 ? UNID[r] : DEZ[Math.floor(r / 10)] + (r % 10 ? ` e ${UNID[r % 10]}` : ''));
+  return partes.join(' e ');
+}
+
+function inteiroPorExtenso(n) {
+  if (n === 0) return 'zero';
+  const grupos = [];
+  const mi = Math.floor(n / 1e6), mil = Math.floor((n % 1e6) / 1000), resto = n % 1000;
+  if (mi) grupos.push({ v: mi, t: mi === 1 ? 'um milhão' : `${ate999(mi)} milhões` });
+  if (mil) grupos.push({ v: mil, t: mil === 1 ? 'mil' : `${ate999(mil)} mil` });
+  if (resto) grupos.push({ v: resto, t: ate999(resto) });
+  // "e" antes do último grupo quando este é menor que cem ou uma centena redonda
+  return grupos.map((g, i) => {
+    if (i === 0) return g.t;
+    const ultimo = i === grupos.length - 1;
+    return (ultimo && (g.v < 100 || g.v % 100 === 0) ? ' e ' : ' ') + g.t;
+  }).join('');
+}
+
+export function porExtenso(valor) {
+  const inteiro = Math.floor(valor + 1e-9);
+  const cent = Math.round((valor - inteiro) * 100);
+  const exato = inteiro >= 1e6 && inteiro % 1e6 === 0;
+  const mt = inteiro === 1 ? 'um metical' : `${inteiroPorExtenso(inteiro)}${exato ? ' de' : ''} meticais`;
+  if (!cent) return mt;
+  const ct = `${inteiroPorExtenso(cent)} ${cent === 1 ? 'centavo' : 'centavos'}`;
+  return inteiro ? `${mt} e ${ct}` : ct;
+}
