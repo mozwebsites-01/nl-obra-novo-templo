@@ -79,21 +79,21 @@ export async function renderAdmin(root, page, user, param) {
   root.innerHTML = `
     <div class="a-shell">
       <aside class="a-side">
-        <div class="a-side__logo"><img src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="148" height="65"></div>
+        <div class="a-side__logo"><img class="a-side__lockup" src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="148" height="65"><img class="a-side__mark" src="assets/brand/mark-white.svg" alt="" aria-hidden="true" width="36" height="36"></div>
         <nav class="a-nav" aria-label="Gestão" style="--nav-n:${nav.length}">
-          ${nav.map(([k, l, ic, short]) => `<a href="#/a/${k}" data-nav="${k}" class="${k === page ? 'is-active' : ''}" ${k === page ? 'aria-current="page"' : ''}>${icon(ic, 18)}<span class="a-nav__full">${l}</span><span class="a-nav__short">${short}</span></a>`).join('')}
+          ${nav.map(([k, l, ic, short]) => `<a href="#/a/${k}" data-nav="${k}" title="${l}" class="${k === page ? 'is-active' : ''}" ${k === page ? 'aria-current="page"' : ''}>${icon(ic, 18)}<span class="a-nav__full">${l}</span><span class="a-nav__short">${short}</span></a>`).join('')}
         </nav>
         <div class="a-side__foot">
           ${mine ? `<div class="side-saldo"><p>O seu saldo acumulado</p><p class="side-saldo__v num">${money(mine.total.valor, { decimals: false })}</p></div>` : ''}
-          ${isAdmin(user) ? `<button type="button" class="a-side__ghost" data-act="reset">${icon('rotate-ccw', 16)}<span>Repor demonstração</span>${icon('chevron-right', 14)}</button>` : ''}
+          ${isAdmin(user) ? `<button type="button" class="a-side__ghost" data-act="reset" title="Repor demonstração">${icon('rotate-ccw', 16)}<span>Repor demonstração</span>${icon('chevron-right', 14)}</button>` : ''}
           <p class="a-side__ver">Protótipo · v0.6</p>
         </div>
       </aside>
       <div class="a-main">
         <div class="a-bar">
-          <form class="a-search" data-search role="search">${icon('search', 18)}<input type="search" placeholder="Procurar membro, recibo ou referência" aria-label="Procurar"></form>
+          <img class="a-bar__brand" src="assets/brand/logo-lockup-navy.svg" alt="Nataniel Litsure Ministries" width="92" height="40"><form class="a-search" data-search role="search">${icon('search', 18)}<input type="search" placeholder="Procurar membro, recibo ou referência" aria-label="Procurar"></form>
           <div class="a-bar__end">
-            ${isAdmin(user) ? '' : `<button type="button" class="btn btn-primary btn-sm a-bar__cta" data-record>${icon('plus-circle', 16)} Registar contribuição</button><span class="a-bar__sep" aria-hidden="true"></span>`}
+            ${isAdmin(user) ? '' : `<button type="button" class="btn btn-primary btn-sm a-bar__cta" data-record aria-label="Registar contribuição">${icon('plus-circle', 16)}<span class="a-bar__cta-t">Registar contribuição</span></button><span class="a-bar__sep" aria-hidden="true"></span>`}
             <div class="a-me">${avatar(user, 34)}<div><p>${esc(user.nome)}</p><p class="a-me__role">${esc(roleLabel(user))}</p></div></div>
             <button type="button" class="a-out" data-act="logout" aria-label="Terminar sessão" title="Terminar sessão">${icon('log-out', 18)}<span>Sair</span></button>
           </div>
@@ -359,8 +359,8 @@ async function painel(ctx) {
 
   main.innerHTML = `
     <div class="dash">
-      <section class="card obra-card" aria-label="Progresso da obra">
-        <div class="card-head" style="margin-bottom:0"><p class="eyebrow">Total angariado · ${esc(settings.obraNome)}</p><a href="#/a/obra" class="link small">Editar meta</a></div>
+      <section class="card obra-card dash__obra" aria-label="Progresso da obra">
+        <div class="card-head" style="margin-bottom:0"><p class="eyebrow">Total angariado<span class="d-only"> · ${esc(settings.obraNome)}</span></p><a href="#/a/obra" class="link small">Editar meta</a></div>
         <div class="obra-card__amount"><span class="display-num">${money(s.arrecadado, { decimals: false, unit: false })}</span><span class="unit">MT</span></div>
         <p class="obra-card__of muted">Meta de <span class="num">${money(s.meta, { decimals: false })}</span> · faltam <span class="num">${money(s.falta, { decimals: false })}</span></p>
         ${ruler(s.arrecadado, s.meta)}
@@ -372,7 +372,7 @@ async function painel(ctx) {
         </dl>
       </section>
 
-      <section class="card pad" aria-label="Saldo de cada gestor">
+      <section class="card pad dash__split" aria-label="Saldo de cada gestor">
         <div class="card-head"><p class="eyebrow">Saldo de cada gestor</p><a href="#/a/gestores" class="link small">Ver gestores</a></div>
         <div class="split">${gestoresList.map((g) => {
           const t = totals(all.filter((c) => c.registadoPor === g.id));
@@ -387,12 +387,12 @@ async function painel(ctx) {
         </div>
       </section>
 
-      <section class="card pad">
+      <section class="card pad dash__chart">
         <div class="card-head"><p class="eyebrow">Evolução mensal</p><p class="muted small num">${cur ? `${money(cur.value, { decimals: false })} em ${monthLong(cur.key)} · ${cur.contribuintes} contribuintes` : ''}</p></div>
         ${barChart(series, { height: 220 })}
       </section>
 
-      <section class="card pad">
+      <section class="card pad dash__methods">
         <div class="card-head"><p class="eyebrow">Formas de pagamento</p></div>
         <div class="methods">${methods.map((m) => `
           <div><div class="method__top"><span>${m.metodo === 'banco' ? 'Transferência' : METODOS[m.metodo]}</span><span class="num" style="white-space:nowrap">${money(m.valor, { decimals: false })} <span class="muted">· ${pct(m.pct)}</span></span></div>
@@ -447,12 +447,12 @@ async function inicio(ctx) {
 // Tabela de recebimentos (partilhada) -------------------------------------
 function receiptsTable(list, people, { showReceiver = false } = {}) {
   if (!list.length) return '<p class="empty">Sem recebimentos.</p>';
-  return `<table class="table">
+  return `<table class="table rtable">
     <thead><tr><th>Recibo</th><th>Membro</th><th>Data</th><th>Forma</th><th>Entregue/enviado por · Ref.</th>${showReceiver ? '<th>Recebido por</th>' : ''}<th class="r">Valor</th></tr></thead>
     <tbody>${list.map((c) => {
       const m = people.get(c.membroId);
       const g = people.get(c.registadoPor);
-      return `<tr class="click" data-id="${c.id}" tabindex="0"><td class="num muted">${esc(c.ref)}${c.notificadoEm ? `<span class="cell-sent" title="Comprovativo enviado ao membro">${icon('check', 12)} Enviado</span>` : ''}</td><td><span class="cell-name">${esc(m?.nome || '—')}</span>${m?.telefone ? `<span class="cell-sub num" style="display:block">${esc(phoneFmt(m.telefone))}</span>` : ''}</td><td>${fmtDate(c.data)}</td><td>${METODOS[c.metodo]}</td><td><span>${esc(c.pagador || '—')}</span><span class="cell-sub num" style="display:block">${esc(c.referencia || 'sem referência')}</span></td>${showReceiver ? `<td>${esc(g?.nome || '—')}</td>` : ''}<td class="r cell-amount">${money(c.valor)}</td></tr>`;
+      return `<tr class="click" data-id="${c.id}" tabindex="0"><td class="num muted c-ref">${esc(c.ref)}${c.notificadoEm ? `<span class="cell-sent" title="Comprovativo enviado ao membro">${icon('check', 12)} Enviado</span>` : ''}</td><td class="c-mem"><span class="cell-name">${esc(m?.nome || '—')}</span>${m?.telefone ? `<span class="cell-sub num" style="display:block">${esc(phoneFmt(m.telefone))}</span>` : ''}</td><td class="c-date">${fmtDate(c.data)}<span class="m-only"> · ${METODOS[c.metodo]}</span></td><td class="c-met">${METODOS[c.metodo]}</td><td class="c-pay"><span>${esc(c.pagador || '—')}</span><span class="cell-sub num" style="display:block">${esc(c.referencia || 'sem referência')}</span></td>${showReceiver ? `<td class="c-rec"><span class="m-only">Recebido por </span>${esc(g?.nome || '—')}</td>` : ''}<td class="r cell-amount c-amt">${money(c.valor)}</td></tr>`;
     }).join('')}</tbody></table>`;
 }
 

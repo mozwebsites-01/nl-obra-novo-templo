@@ -523,7 +523,6 @@ dialog.sheet[open] { display: flex; }
 .cell-amount { font-weight: 600; white-space: nowrap; }
 .split__val p:first-child { font-weight: 600; }
 @media (max-width: 760px) { .saldo__acct { display: none; } }
-@media (max-width: 760px) { .saldo [data-record-here] { display: none; } }
 
 /* Lista de sugestões de membros (registar contribuição) */
 .combo { position: relative; }
@@ -540,3 +539,93 @@ dialog.sheet[open] { display: flex; }
 .combo__list li.is-active, .combo__list li[data-i]:hover { background: var(--tint); }
 .combo__list li.is-active span:first-child { color: var(--navy); font-weight: 600; }
 .combo__empty { padding: 12px; font-size: 13px; color: var(--ink-2); }
+
+/* ===== Tablet (761–1100px): barra lateral em ícones, painel em duas colunas ===== */
+.a-side__mark, .a-bar__brand, .m-only { display: none; }
+@media (min-width: 761px) and (max-width: 1100px) {
+  .a-shell { grid-template-columns: 76px minmax(0, 1fr); }
+  .a-side { padding: 22px 10px 16px; align-items: center; }
+  .a-side__logo { padding: 0 0 26px; }
+  .a-side__lockup { display: none; }
+  .a-side__logo .a-side__mark { display: block; width: 38px; height: auto; }
+  .a-nav { width: 100%; }
+  .a-nav a { justify-content: center; padding: 0; height: 46px; }
+  .a-nav a .a-nav__full, .a-nav a .a-nav__short { display: none; }
+  .a-nav a.is-active::before { left: -10px; }
+  .side-saldo, .a-side__ver { display: none; }
+  .a-side__ghost { justify-content: center; padding: 0; width: 46px; }
+  .a-side__ghost span, .a-side__ghost .i:last-child { display: none; }
+  .a-bar { padding: 0 24px; gap: 16px; }
+  .a-me div { display: none; }
+  .a-top { padding: 26px 24px 20px; }
+  .a-content { padding: 0 24px 48px; }
+  .dash { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+  .dash__obra, .dash__chart { grid-column: 1 / -1; }
+  .dash__obra { order: 1; } .dash__split { order: 2; } .dash__methods { order: 3; } .dash__chart { order: 4; } .dash > .dash__wide { order: 5; }
+  .stats { grid-template-columns: repeat(4, 1fr); }
+  .stats > div:nth-child(3) { border-left: 1px solid var(--line); padding-left: 16px; }
+  .g-home { gap: 20px; }
+}
+
+/* ===== Telemóvel (até 760px) ===== */
+@media (max-width: 760px) {
+  /* Uma só barra no topo: logótipo à esquerda, ações à direita */
+  .a-side { padding: 0; background: none; }
+  .a-side__logo { display: none; }
+  .a-bar { height: 58px; padding: 0 12px 0 16px; gap: 8px; background: #fff; }
+  .a-bar__brand { display: block; width: 84px; height: auto; flex: none; }
+  .a-search { display: none; }
+  .a-bar__end { gap: 8px; }
+  .a-bar__cta { width: 40px; height: 40px; padding: 0; justify-content: center; }
+  .a-bar__cta-t { display: none; }
+  .a-me .avatar { width: 36px !important; height: 36px !important; }
+  .a-out { width: 40px; height: 40px; }
+
+  /* Navegação em baixo mais legível com seis entradas */
+  .a-nav a { font-size: 10px; gap: 3px; padding: 7px 0; }
+  .a-nav a.is-active { position: relative; }
+  .a-nav a.is-active::after { content: ""; position: absolute; top: -6px; left: 28%; right: 28%; height: 2px; background: var(--navy); }
+
+  /* Cabeçalho da página: título e ação na mesma linha */
+  .a-top { flex-direction: row; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 18px 16px 14px; }
+  .a-top__eyebrow { font-size: 12px; }
+  .a-top__actions { flex: none; }
+  .a-top__actions .btn { flex: none; height: 38px; padding: 0 12px; font-size: 13px; }
+  .card-head { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .card-head .muted.small { display: none; }
+  .dash, .g-home { gap: 14px; }
+  .a-content .card.pad { padding: 18px 16px; }
+  .obra-card { padding: 18px 16px; }
+  .obra-card__of { font-size: 13px; }
+
+  /* Gráfico: só os últimos seis meses cabem com leitura confortável */
+  .chart__col:not(:nth-last-child(-n+6)) { display: none; }
+  .chart__axis { min-width: 44px; padding-right: 8px; }
+
+}
+@media (max-width: 760px) { .d-only { display: none; } }
+
+/* Tablet e telemóvel: a tabela de recebimentos passa a lista */
+@media (max-width: 1100px) {
+  .table-card { overflow: visible; }
+  .rtable thead { display: none; }
+  .rtable, .rtable tbody { display: block; }
+  .rtable tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 3px;
+    padding: 13px 16px; border-top: 1px solid var(--line);
+  }
+  .rtable td { padding: 0; border: 0; white-space: normal !important; }
+  .rtable .c-mem { grid-column: 1; grid-row: 1; }
+  .rtable .c-mem .cell-sub { display: none !important; }
+  .rtable .c-amt { grid-column: 2; grid-row: 1; font-size: 14.5px; }
+  .rtable .c-date { grid-column: 1; grid-row: 2; font-size: 12.5px; color: var(--ink-2); }
+  .rtable .c-ref { grid-column: 2; grid-row: 2; text-align: right; font-size: 12px; }
+  .rtable .c-ref .cell-sent { justify-content: flex-end; }
+  .rtable .c-rec { grid-column: 1 / -1; grid-row: 3; font-size: 12.5px; color: var(--ink-2); }
+  .rtable .c-met, .rtable .c-pay { display: none; }
+  .rtable .m-only { display: inline; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .rtable tr { padding: 14px 24px; }
+  .card-head--table { padding-bottom: 12px; }
+}
