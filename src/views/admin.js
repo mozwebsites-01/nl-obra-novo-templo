@@ -12,7 +12,7 @@ import {
   METODOS, money, pct, fmtDate, fmtDateShort, fmtDateTime, fmtLongToday, monthKey, monthShort, monthLong,
   phoneFmt, isValidPhone, isoDate, parseAmount, defaultPayer, firstName, periodRange, shiftPeriod,
 } from '../format.js';
-import { receiptData, whatsappLink, downloadPdf, sharePdf, canSharePdf } from '../share.js';
+import { receiptData, whatsappLink, downloadPdf, sharePdf, canSharePdf, pdfButton, warmPdf } from '../share.js';
 import { downloadReportPdf } from '../reportpdf.js';
 
 // [chave, rótulo, ícone, rótulo curto para a barra inferior do telemóvel]
@@ -146,10 +146,9 @@ export async function renderAdmin(root, page, user, param) {
 // Recibo --------------------------------------------------------------------
 // Botão "Baixar PDF" do recibo
 function bindPdf(d, data) {
+  warmPdf();
   d.querySelector('[data-pdf]').addEventListener('click', async (e) => {
-    const b = e.currentTarget; b.disabled = true;
-    try { await downloadPdf(data); toast(`Recibo ${data.r} descarregado em PDF`); } catch (ex) { toast(ex.message); }
-    b.disabled = false;
+    try { await pdfButton(e.currentTarget, () => downloadPdf(data)); } catch (ex) { toast(ex.message); }
   });
 }
 
@@ -863,10 +862,9 @@ async function relatorios(ctx) {
       signLeft: st.gestor ? whoLabel : 'Gestor responsável',
       file: `Relatorio-${{ dia: 'diario', semana: 'semanal', mes: 'mensal' }[st.kind]}-${r.from}${st.gestor ? `-${(people.get(st.gestor)?.nome || '').split(' ')[0]}` : ''}.pdf`,
     };
-    b.disabled = true;
-    try { await downloadReportPdf(repData); toast('Relatório descarregado em PDF'); } catch (ex) { toast(ex.message); }
-    b.disabled = false;
+    try { await pdfButton(b, () => downloadReportPdf(repData)); } catch (ex) { toast(ex.message); }
   });
+  warmPdf();
   document.querySelector('[data-export]').addEventListener('click', () => {
     const { r, list } = current();
     exportCsv(list, people, `relatorio-${st.kind}-${r.from}`);

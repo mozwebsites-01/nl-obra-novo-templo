@@ -150,5 +150,5 @@ export async function reportPdf(rep) {
 }
 
 export async function downloadReportPdf(rep) {
-  saveBlob(await reportPdf(rep), rep.file);
+  return saveBlob(await reportPdf(rep), rep.file);
 }

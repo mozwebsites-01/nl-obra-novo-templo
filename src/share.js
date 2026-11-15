@@ -150,15 +150,61 @@ export async function newPdf(format = 'a4') {
   return { doc, logo };
 }
 
-// Descarrega um PDF (Blob) com o nome dado
-export function saveBlob(blob, name) {
+// Prepara a biblioteca, as fontes e o logótipo antes do primeiro clique, para o PDF sair logo
+export function warmPdf() {
+  const go = () => Promise.all([loadLib(), loadAssets()]).catch(() => {});
+  if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 2000 }); else setTimeout(go, 600);
+}
+
+// iPhone com a app instalada (ecrã principal): o Safari não descarrega ficheiros a partir
+// de ligações "download"; aí usamos a folha de partilha (Guardar em Ficheiros, WhatsApp…).
+const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+
+// Descarrega um PDF (Blob) com o nome dado; devolve 'download', 'share' ou 'open'
+export async function saveBlob(blob, name) {
+  const file = new File([blob], name, { type: 'application/pdf' });
+  if (isIOS() && isStandalone() && navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return 'share'; } catch (e) { if (e.name === 'AbortError') return 'share'; }
+  }
+  const url = URL.createObjectURL(blob);
+  if (!('download' in HTMLAnchorElement.prototype)) {
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return 'open';
+  }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  a.href = url;
   a.download = name;
+  a.rel = 'noopener';
   document.body.append(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return 'download';
+}
+
+// Botão de PDF com estado: "A preparar…" enquanto gera, "PDF descarregado" no fim
+export async function pdfButton(btn, make, { done = 'PDF descarregado' } = {}) {
+  if (btn.dataset.busy) return null;
+  const html = btn.innerHTML;
+  btn.dataset.busy = '1';
+  btn.setAttribute('aria-busy', 'true');
+  btn.classList.add('is-busy');
+  btn.innerHTML = '<span class="btn-spin" aria-hidden="true"></span><span>A preparar PDF…</span>';
+  try {
+    const how = await make();
+    btn.classList.remove('is-busy');
+    btn.classList.add('is-done');
+    btn.innerHTML = `<svg class="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>${how === 'share' ? 'PDF pronto' : done}</span>`;
+    await new Promise((r) => setTimeout(r, 1800));
+    return how;
+  } finally {
+    btn.innerHTML = html;
+    btn.classList.remove('is-busy', 'is-done');
+    btn.removeAttribute('aria-busy');
+    delete btn.dataset.busy;
+  }
 }
 
 export async function receiptPdf(data) {
@@ -242,7 +288,7 @@ export async function receiptPdf(data) {
 export const pdfName = (data) => `Recibo-${data.r}.pdf`;
 
 export async function downloadPdf(data) {
-  saveBlob(await receiptPdf(data), pdfName(data));
+  return saveBlob(await receiptPdf(data), pdfName(data));
 }
 
 // Partilha nativa do telemóvel (WhatsApp, etc.) com o PDF em anexo

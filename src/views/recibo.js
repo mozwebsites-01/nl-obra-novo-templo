@@ -1,7 +1,7 @@
 // Página pública do recibo (#/recibo/<dados>): é o que o membro abre a partir do WhatsApp.
 // Não exige sessão; mostra o recibo e permite descarregar o PDF.
 import { esc, icon, receipt, toast } from '../ui.js';
-import { decodeReceipt, fromData, downloadPdf } from '../share.js';
+import { decodeReceipt, fromData, downloadPdf, pdfButton, warmPdf } from '../share.js';
 import { firstName } from '../format.js';
 
 export function renderPublicReceipt(root, encoded) {
@@ -29,9 +29,8 @@ export function renderPublicReceipt(root, encoded) {
       <p class="pub__foot">Comprovativo emitido por Nataniel Litsure Ministries</p>
     </main>`;
 
+  if (data) warmPdf();
   root.querySelector('[data-pdf]')?.addEventListener('click', async (e) => {
-    const b = e.currentTarget; b.disabled = true;
-    try { await downloadPdf(data); } catch (ex) { toast(ex.message); }
-    b.disabled = false;
+    try { await pdfButton(e.currentTarget, () => downloadPdf(data), { done: 'Recibo descarregado' }); } catch (ex) { toast(ex.message); }
   });
 }

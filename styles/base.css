@@ -297,3 +297,10 @@ dialog.sheet::backdrop { background: rgba(20, 21, 43, 0.32); }
   .receipt__amount { flex-wrap: wrap; row-gap: 8px; padding: 12px 14px; }
   .receipt__amount .display-num { font-size: 26px; }
 }
+
+/* Botão a preparar um ficheiro: girador, largura estável e sem cliques repetidos */
+.btn.is-busy, .btn.is-done { pointer-events: none; }
+.btn.is-busy { opacity: 0.92; }
+.btn-spin { width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin 700ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn-spin { animation-duration: 1600ms; } }
