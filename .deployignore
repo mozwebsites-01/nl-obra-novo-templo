@@ -11,3 +11,4 @@ server.js
 direcoes.html
 .DS_Store
 scripts/
+supabase/

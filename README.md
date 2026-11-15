@@ -17,6 +17,17 @@ gestor**, a administração cria cada gestor; o sistema gera o PIN, que deve ser
 não houver base de dados partilhada (próximo passo: Supabase), use sempre o mesmo aparelho
 para a administração e os gestores; noutro telemóvel o sistema aparece vazio.
 
+## Base de dados partilhada (Supabase)
+
+1. Criar um projeto em supabase.com e, em Authentication › Providers › Email, desativar
+   "Confirm email".
+2. No SQL Editor, colar e executar `supabase/schema.sql` (tabelas, número de recibo
+   automático e regras de acesso: cada gestor só vê os seus recebimentos; a administração vê tudo).
+3. Em `src/config.js`, preencher `url` e `anonKey` (Project Settings › API). Nunca usar a chave
+   `service_role` no site.
+
+Sem configuração, o sistema guarda os dados só no navegador (`src/store-local.js`).
+
 ## Abrir localmente
 
 ```bash

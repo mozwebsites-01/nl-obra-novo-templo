@@ -58,7 +58,8 @@ export async function renderLogin(root) {
       const digits = input.value.replace(/\D/g, '');
       if (!isValidPhone(digits)) return phoneStep('Introduza os 9 dígitos do número, começando por 8.');
       telefone = digits;
-      const m = await store.findMemberByPhone(telefone);
+      let m;
+      try { m = await store.findMemberByPhone(telefone); } catch (ex) { return phoneStep(ex.message); }
       if (!m) return phoneStep('Este número não tem acesso ao sistema. Fale com a administração da obra.');
       if (m.role === 'membro') return statusStep('pausado');
       if (m.estado === 'suspenso') return statusStep('suspenso');
@@ -138,7 +139,10 @@ export async function renderLogin(root) {
   // Com `known`, é a última conta usada neste aparelho: mostra-se o nome e pede-se só o PIN.
   async function pinStep(known = false) {
     pin = '';
-    const m = await store.findMemberByPhone(telefone);
+    // Conta lembrada: o nome vem deste aparelho (no servidor, o nome só se vê depois de entrar)
+    let m = null;
+    try { m = known ? (await store.lastAccount()) || (await store.findMemberByPhone(telefone)) : null; } catch { m = null; }
+    if (m && !m.nome) m = null;
     const head = known && m
       ? `<div class="login__who">${avatar(m, 56)}<div><h1 class="login__title">Olá, ${esc(firstName(m.nome))}</h1>
           <p class="login__lead">${esc(m.role === 'admin' ? 'Administração' : m.cargo || 'Gestor')} · +258 ${esc(phoneFmt(telefone))}</p></div></div>
@@ -179,7 +183,12 @@ export async function renderLogin(root) {
     paint();
     if (pin.length === 4) {
       busy = true;
-      const res = await store.signIn(telefone, pin);
+      let res;
+      try { res = await store.signIn(telefone, pin); } catch (ex) {
+        busy = false; pin = ''; paint();
+        step.querySelector('[data-msg]').textContent = ex.message;
+        return;
+      }
       await new Promise((r) => setTimeout(r, 180));
       busy = false;
       if (res.user) { clearInterval(lockTimer); return navigate(res.user.role === 'admin' ? '#/a/painel' : '#/a/inicio'); }
@@ -258,7 +267,9 @@ export async function renderLogin(root) {
     });
   }
 
-  if (await store.needsSetup()) return setupStep();
+  let setup = false;
+  try { setup = await store.needsSetup(); } catch (ex) { return phoneStep(ex.message); }
+  if (setup) return setupStep();
   const last = await store.lastAccount();
   if (last) { telefone = last.telefone; pinStep(true); } else phoneStep();
 }
