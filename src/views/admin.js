@@ -86,8 +86,7 @@ export async function renderAdmin(root, page, user, param) {
         </nav>
         <div class="a-side__foot">
           ${mine ? `<div class="side-saldo"><p>O seu saldo acumulado</p><p class="side-saldo__v num">${money(mine.total.valor, { decimals: false })}</p></div>` : ''}
-          ${isAdmin(user) ? `<button type="button" class="a-side__ghost" data-act="reset" title="Repor demonstração">${icon('rotate-ccw', 16)}<span>Repor demonstração</span>${icon('chevron-right', 14)}</button>` : ''}
-          <p class="a-side__ver">Protótipo · v0.7</p>
+          <p class="a-side__ver">Versão 1.0</p>
         </div>
       </aside>
       <div class="a-main">
@@ -129,13 +128,6 @@ export async function renderAdmin(root, page, user, param) {
     e.preventDefault();
     sessionStorage.setItem('nl.q', e.currentTarget.querySelector('input').value.trim());
     navigate('#/a/contribuicoes');
-  });
-  root.querySelector('[data-act=reset]')?.addEventListener('click', async () => {
-    const ok = await confirmDialog({ title: 'Repor dados de demonstração?', text: 'Todas as alterações feitas neste navegador serão substituídas pelos dados iniciais.', confirmLabel: 'Repor dados' });
-    if (!ok) return;
-    await store.resetDemo();
-    toast('Dados de demonstração repostos');
-    navigate('#/a/painel');
   });
 
   const pages = { painel, inicio, gestores, contribuicoes, membros, relatorios, obra };
@@ -370,7 +362,8 @@ async function painel(ctx) {
 
       <section class="card pad dash__split" aria-label="Saldo de cada gestor">
         <div class="card-head"><p class="eyebrow">Saldo de cada gestor</p><a href="#/a/gestores" class="link small">Ver gestores</a></div>
-        <div class="split">${gestoresList.map((g) => {
+        ${gestoresList.length ? '' : `<p class="split__empty">Ainda não há gestores. Adicione os gestores que vão receber e registar as contribuições.</p><a class="btn btn-secondary btn-sm" href="#/a/gestores">${icon('user-plus', 15)} Adicionar gestor</a>`}
+        <div class="split"${gestoresList.length ? '' : ' hidden'}>${gestoresList.map((g) => {
           const t = totals(all.filter((c) => c.registadoPor === g.id));
           const share = s.arrecadado ? (t.total.valor / s.arrecadado) * 100 : 0;
           return `<div class="split__row">
@@ -442,7 +435,7 @@ async function inicio(ctx) {
 
 // Tabela de recebimentos (partilhada) -------------------------------------
 function receiptsTable(list, people, { showReceiver = false } = {}) {
-  if (!list.length) return '<p class="empty">Sem recebimentos.</p>';
+  if (!list.length) return '<p class="empty">Ainda não há recebimentos. Os valores registados pelos gestores aparecem aqui.</p>';
   return `<table class="table rtable">
     <thead><tr><th>Recibo</th><th>Membro</th><th>Data</th><th>Forma de pagamento</th>${showReceiver ? '<th>Recebido por</th>' : ''}<th class="r">Valor</th></tr></thead>
     <tbody>${list.map((c) => {

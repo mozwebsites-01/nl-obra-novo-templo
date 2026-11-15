@@ -1,42 +1,64 @@
 // Camada de dados. Toda a aplicação passa por aqui; as funções são assíncronas
 // para que esta implementação (localStorage) possa ser trocada por Supabase
 // sem alterar as vistas.
-import { buildSeed, notificationText, seedMessages, seedRegistrations, seedGestores, gestorFor } from './seed.js';
-import { isoDate, monthKey, monthShort, defaultPayer } from './format.js';
+import { notificationText } from './seed.js';
+import { isoDate, monthKey, monthShort } from './format.js';
 
-const KEY = 'nl.db.v1';
+// Versão de produção: começa sem nenhum dado. A chave nova deixa para trás os dados
+// de demonstração que estejam guardados nos navegadores (e apaga-os).
+const KEY = 'nl.db.v2';
 const SESSION = 'nl.session.v1';
 // A sessão caduca ao fim de três minutos sem atividade: quem deixa o
 // telemóvel pousado ou fecha a app tem de introduzir as credenciais outra vez.
 export const SESSION_TTL = 3 * 60 * 1000;
+
+// Uma única vez, nos navegadores que tinham a demonstração: apaga os dados antigos,
+// a conta lembrada e as tentativas de PIN dessa versão.
+if (localStorage.getItem('nl.db.v1')) for (const k of ['nl.db.v1', 'nl.attempts.v1', 'nl.last.v1']) localStorage.removeItem(k);
+
+function emptyDb() {
+  const now = new Date();
+  return {
+    version: 2,
+    seq: 0,
+    settings: {
+      obraNome: 'Obra do Novo Templo',
+      meta: 5000000,
+      inicio: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+      prazo: `${now.getFullYear() + 1}-12-31`,
+    },
+    members: [],
+    contributions: [],
+    notifications: [],
+    messages: [],
+  };
+}
 
 let db = load();
 
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const data = JSON.parse(raw);
-      // Migração: dados guardados antes de existirem mensagens
-      if (!data.messages) { data.messages = seedMessages(); save(data); }
-      if (!data.registos) { data.registos = true; data.members.push(...seedRegistrations()); save(data); }
-      for (const g of seedGestores()) if (!data.members.some((m) => m.id === g.id)) { data.members.splice(1, 0, g); save(data); }
-      // Contribuições antigas sem gestor: atribui quem as recebeu
-      if (data.contributions.some((c) => c.estado === 'confirmado' && !c.registadoPor)) {
-        for (const c of data.contributions) if (c.estado === 'confirmado' && !c.registadoPor) c.registadoPor = gestorFor(c.membroId);
-        save(data);
-      }
-      if (data.contributions.some((c) => c.pagador === undefined)) {
-        const byId = new Map(data.members.map((m) => [m.id, m]));
-        for (const c of data.contributions) if (c.pagador === undefined) c.pagador = defaultPayer(byId.get(c.membroId), c.metodo);
-        save(data);
-      }
-      return data;
-    }
+    if (raw) return JSON.parse(raw);
   } catch { /* dados corrompidos: recomeça */ }
-  const fresh = buildSeed();
+  const fresh = emptyDb();
   save(fresh);
   return fresh;
+}
+
+// Primeiro acesso: ainda não existe a conta da administração
+export async function needsSetup() {
+  return !db.members.some((m) => m.role === 'admin');
+}
+
+export async function createAdmin({ nome, telefone, pin }) {
+  if (!(await needsSetup())) throw new Error('A conta da administração já foi criada.');
+  const admin = { id: 'm_admin', nome, telefone, pin, role: 'admin', cargo: 'Administração', estado: 'ativo', criadoEm: new Date().toISOString() };
+  db.members.push(admin);
+  save();
+  sessionStorage.setItem(SESSION, JSON.stringify({ id: admin.id, at: Date.now() }));
+  localStorage.setItem('nl.last.v1', admin.telefone);
+  return admin;
 }
 
 function save(data = db) {
@@ -154,11 +176,6 @@ export async function signOut(reason) {
   sessionStorage.removeItem(SESSION);
   for (const k of ['nl.q', 'nl.gestor']) sessionStorage.removeItem(k);
   if (reason) sessionStorage.setItem(EXIT, reason);
-}
-
-export async function resetDemo() {
-  db = buildSeed();
-  save();
 }
 
 // Obra ----------------------------------------------------------------------

@@ -100,3 +100,9 @@
 }
 @media (prefers-reduced-motion: reduce) { .login__card { animation: none; } }
 @media (max-width: 520px) { .login__watermark { width: 120vmin; right: -40vmin; bottom: -30vmin; } }
+
+/* Campos de texto no cartão escuro (configuração inicial) */
+.login .input { height: 50px; border-radius: 12px; color: #fff; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.2); }
+.login .input::placeholder { color: rgba(255, 255, 255, 0.38); }
+.login .input:focus { outline: none; border-color: rgba(255, 255, 255, 0.7); background: rgba(255, 255, 255, 0.1); }
+.login .field { display: grid; gap: 8px; }

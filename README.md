@@ -7,8 +7,15 @@ registam-nas e emitem o recibo; a administração acompanha o total de cada gest
 
 https://mozwebsites-01.github.io/nl-obra-novo-templo/
 
-Cada pessoa tem os seus próprios dados de demonstração (guardados no navegador),
-por isso o que um gestor regista num telemóvel ainda não aparece à administração noutro aparelho.
+## Primeiro acesso
+
+O sistema começa vazio. Na primeira visita aparece **Configuração inicial**: cria-se a conta
+da administração (nome, telemóvel e PIN de 4 dígitos). Depois, em **Gestores › Adicionar
+gestor**, a administração cria cada gestor; o sistema gera o PIN, que deve ser entregue em privado.
+
+**Importante:** os dados ficam guardados no navegador do aparelho onde são registados. Enquanto
+não houver base de dados partilhada (próximo passo: Supabase), use sempre o mesmo aparelho
+para a administração e os gestores; noutro telemóvel o sistema aparece vazio.
 
 ## Abrir localmente
 
@@ -17,14 +24,6 @@ npm start
 ```
 
 Depois abra http://localhost:4173. Não há dependências para instalar (Node 18+).
-
-## Contas de demonstração
-
-| Perfil                    | Nome          | Telemóvel   | PIN  |
-|---------------------------|---------------|-------------|------|
-| Administração (principal) | Samuel Tembe  | 84 000 0001 | 2580 |
-| Gestora                   | Rute Langa    | 84 000 0002 | 1357 |
-| Gestor                    | Paulo Cossa   | 84 000 0003 | 2468 |
 
 ## Regras
 
@@ -48,15 +47,13 @@ Depois abra http://localhost:4173. Não há dependências para instalar (Node 18
   conta ("Olá, Rute" + PIN). Após 3 minutos sem atividade a sessão termina (aviso 30 s antes).
   5 PIN errados bloqueiam a entrada durante 60 s. "Sair" pede confirmação.
 
-Os dados ficam no `localStorage` do navegador. "Repor demonstração" (barra lateral
-do admin ou Perfil do membro) volta aos dados iniciais.
+Os dados ficam no `localStorage` do navegador (chave `nl.db.v2`).
 
 ## Estrutura
 
 - `assets/brand/` — logótipos originais recortados ao contorno (sem alterações ao desenho)
 - `styles/tokens.css` — paleta e tipografia derivadas do logótipo
 - `src/store.js` — camada de dados (assíncrona; trocar por Supabase sem mexer nas vistas)
-- `src/seed.js` — dados de demonstração
 - `src/views/` — entrada, membro (telemóvel) e administração (desktop)
 
 ## Ainda não incluído

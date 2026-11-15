@@ -814,3 +814,4 @@ dialog.sheet[open] { display: flex; }
   .sheet__head { padding: 14px 12px 14px 16px; }
   dialog.sheet { width: calc(100% - 24px); max-height: calc(100dvh - 32px); }
 }
+.split__empty { margin-bottom: 14px; font-size: 14px; line-height: 1.5; color: var(--ink-2); }

@@ -1,5 +1,4 @@
 import * as store from '../store.js';
-import { DEMO } from '../seed.js';
 import { esc, icon, avatar, navigate } from '../ui.js';
 import { isValidPhone, phoneFmt, firstName } from '../format.js';
 
@@ -27,17 +26,9 @@ export async function renderLogin(root) {
         <div class="login__inner">
           ${NOTICE[reason] ? `<p class="login__notice" role="status">${icon(NOTICE[reason][0], 16)}<span>${NOTICE[reason][1]}</span></p>` : ''}
           <div aria-live="polite" data-step></div>
-          <div class="login__demo">
-            <p class="login__or"><span>ou entre com uma conta de demonstração</span></p>
-            <div class="login__demo-list">
-              <button type="button" class="login__demo-item" data-demo="admin">${icon('landmark', 17)}<b>Administração</b><span>Samuel Tembe · PIN ${DEMO.admin.pin}</span></button>
-              <button type="button" class="login__demo-item" data-demo="gestor">${icon('user', 17)}<b>Gestora</b><span>Rute Langa · PIN ${DEMO.gestor.pin}</span></button>
-              <button type="button" class="login__demo-item" data-demo="gestor2">${icon('user', 17)}<b>Gestor</b><span>Paulo Cossa · PIN ${DEMO.gestor2.pin}</span></button>
-            </div>
-          </div>
         </div>
       </section>
-      <p class="login__foot">Acesso reservado à administração e aos gestores · Protótipo, os dados ficam neste navegador</p>
+      <p class="login__foot">Acesso reservado à administração e aos gestores da obra.</p>
     </main>`;
 
   const step = root.querySelector('[data-step]');
@@ -230,14 +221,44 @@ export async function renderLogin(root) {
   };
   document.addEventListener('keydown', onKey);
 
-  root.querySelectorAll('[data-demo]').forEach((b) =>
-    b.addEventListener('click', () => {
-      telefone = DEMO[b.dataset.demo].telefone;
-      root.querySelector('.login__demo').open = false;
-      pinStep(true);
-    }),
-  );
+  // Primeiro acesso: cria a conta da administração (nome, telemóvel e PIN)
+  function setupStep(error = '') {
+    step.innerHTML = `
+      <h1 class="login__title">Configuração inicial</h1>
+      <p class="login__lead">Crie a conta da administração. Depois, na área de gestão, adicione os gestores.</p>
+      <form class="login__form" novalidate>
+        <div class="field"><label for="s-nome">Nome completo</label><input class="input login__input" id="s-nome" autocomplete="name" placeholder="Nome e apelido" maxlength="80"></div>
+        <div class="field"><label for="s-tel">Número de telemóvel</label>
+          <div class="phone"><span class="phone__prefix">${icon('smartphone', 17)}+258</span><input id="s-tel" inputmode="numeric" autocomplete="tel-national" placeholder="84 123 4567"></div></div>
+        <div class="login__row">
+          <div class="field"><label for="s-p1">PIN de 4 dígitos</label><input class="input login__input" id="s-p1" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••"></div>
+          <div class="field"><label for="s-p2">Repita o PIN</label><input class="input login__input" id="s-p2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••"></div>
+        </div>
+        <p class="error-text" data-error ${error ? '' : 'hidden'}>${esc(error)}</p>
+        <button class="btn btn-primary btn-block" type="submit">Criar conta e entrar</button>
+      </form>`;
+    const tel = step.querySelector('#s-tel');
+    maskPhone(tel);
+    step.querySelector('#s-nome').focus();
+    step.querySelector('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nome = step.querySelector('#s-nome').value.trim().replace(/\s+/g, ' ');
+      const digits = tel.value.replace(/\D/g, '');
+      const p1 = step.querySelector('#s-p1').value, p2 = step.querySelector('#s-p2').value;
+      const msg = nome.split(' ').length < 2 ? 'Indique o nome e o apelido.'
+        : !isValidPhone(digits) ? 'Indique os 9 dígitos do telemóvel, começando por 8.'
+        : !/^\d{4}$/.test(p1) ? 'O PIN tem de ter 4 dígitos.'
+        : /^(\d)\1{3}$/.test(p1) || ['1234', '4321', '0000'].includes(p1) ? 'Escolha um PIN menos óbvio.'
+        : p1 !== p2 ? 'Os dois PIN não coincidem.' : '';
+      if (msg) return setupStep(msg);
+      try {
+        await store.createAdmin({ nome, telefone: digits, pin: p1 });
+        navigate('#/a/painel');
+      } catch (ex) { setupStep(ex.message); }
+    });
+  }
 
+  if (await store.needsSetup()) return setupStep();
   const last = await store.lastAccount();
   if (last) { telefone = last.telefone; pinStep(true); } else phoneStep();
 }
