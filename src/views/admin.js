@@ -22,7 +22,7 @@ const NAV_ADMIN = [
   ['contribuicoes', 'Recebimentos', 'receipt', 'Recebidos'],
   ['membros', 'Membros', 'users', 'Membros'],
   ['relatorios', 'Relatórios', 'file-text', 'Relatórios'],
-  ['obra', 'Obra', 'landmark', 'Obra'],
+  ['obra', 'Obra', 'landmark', 'Obra', 'no-phone'],
 ];
 const NAV_GESTOR = [
   ['inicio', 'Início', 'home', 'Início'],
@@ -81,13 +81,13 @@ export async function renderAdmin(root, page, user, param) {
     <div class="a-shell">
       <aside class="a-side">
         <div class="a-side__logo"><img class="a-side__lockup" src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="148" height="65"><img class="a-side__mark" src="assets/brand/mark-white.svg" alt="" aria-hidden="true" width="36" height="36"></div>
-        <nav class="a-nav" aria-label="Gestão" style="--nav-n:${nav.length}">
-          ${nav.map(([k, l, ic, short]) => `<a href="#/a/${k}" data-nav="${k}" title="${l}" class="${k === page ? 'is-active' : ''}" ${k === page ? 'aria-current="page"' : ''}>${icon(ic, 18)}<span class="a-nav__full">${l}</span><span class="a-nav__short">${short}</span></a>`).join('')}
+        <nav class="a-nav" aria-label="Gestão" style="--nav-n:${nav.length};--nav-p:${nav.filter((n) => !n[4]).length}">
+          ${nav.map(([k, l, ic, short, x]) => `<a href="#/a/${k}" data-nav="${k}" title="${l}" class="${k === page ? 'is-active' : ''}${x ? ` ${x}` : ''}" ${k === page ? 'aria-current="page"' : ''}>${icon(ic, 18)}<span class="a-nav__full">${l}</span><span class="a-nav__short">${short}</span></a>`).join('')}
         </nav>
         <div class="a-side__foot">
           ${mine ? `<div class="side-saldo"><p>O seu saldo acumulado</p><p class="side-saldo__v num">${money(mine.total.valor, { decimals: false })}</p></div>` : ''}
           ${isAdmin(user) ? `<button type="button" class="a-side__ghost" data-act="reset" title="Repor demonstração">${icon('rotate-ccw', 16)}<span>Repor demonstração</span>${icon('chevron-right', 14)}</button>` : ''}
-          <p class="a-side__ver">Protótipo · v0.6</p>
+          <p class="a-side__ver">Protótipo · v0.7</p>
         </div>
       </aside>
       <div class="a-main">
@@ -635,28 +635,28 @@ async function membros(ctx) {
     if (tab === 'pedidos') {
       const rows = regs.filter(match);
       table = rows.length
-        ? `<table class="table"><thead><tr><th>Pedido de</th><th>Telemóvel</th><th>Recebido</th><th class="r">Decisão</th></tr></thead><tbody>${rows.map((m) => `
-            <tr><td><span class="cell-name">${esc(m.nome)}</span></td><td class="num">+258 ${phoneFmt(m.telefone)}</td><td>${fmtDateTime(m.criadoEm)}</td>
-            <td class="r"><div class="row-actions"><button type="button" class="btn btn-secondary btn-sm" data-reg="${m.id}" data-ok="0">Recusar</button><button type="button" class="btn btn-primary btn-sm" data-reg="${m.id}" data-ok="1">${icon('check', 16)} Aprovar</button></div></td></tr>`).join('')}</tbody></table>`
+        ? `<table class="table mtable mtable--req"><thead><tr><th>Pedido de</th><th>Telemóvel</th><th>Recebido</th><th class="r">Decisão</th></tr></thead><tbody>${rows.map((m) => `
+            <tr><td class="m-name"><span class="cell-name">${esc(m.nome)}</span></td><td class="num m-tel">+258 ${phoneFmt(m.telefone)}</td><td class="m-last">${fmtDateTime(m.criadoEm)}</td>
+            <td class="r m-act"><div class="row-actions"><button type="button" class="btn btn-secondary btn-sm" data-reg="${m.id}" data-ok="0">Recusar</button><button type="button" class="btn btn-primary btn-sm" data-reg="${m.id}" data-ok="1">${icon('check', 16)} Aprovar</button></div></td></tr>`).join('')}</tbody></table>`
         : '<p class="empty">Não há pedidos por tratar.</p>';
     } else {
       const rows = list.filter((m) => (tab === 'suspensos' ? m.estado === 'suspenso' : m.estado !== 'suspenso')).filter(match);
       table = rows.length
-        ? `<table class="table"><thead><tr><th>Membro</th><th>Telemóvel</th><th class="r">Contribuições</th><th class="r">${admin ? 'Total' : 'Recebido por si'}</th><th>Última</th><th class="r"></th></tr></thead>
+        ? `<table class="table mtable"><thead><tr><th>Membro</th><th>Telemóvel</th><th class="r">Contribuições</th><th class="r">${admin ? 'Total' : 'Recebido por si'}</th><th>Última</th><th class="r"></th></tr></thead>
           <tbody>${rows.map((m) => {
             const s = statsFor(m.id);
             const susp = m.estado === 'suspenso';
             const action = admin
               ? `<button type="button" class="btn btn-ghost btn-sm" data-susp="${m.id}">${susp ? 'Reativar' : 'Suspender'}</button>`
               : `<button type="button" class="btn btn-secondary btn-sm" data-rec="${m.id}">${icon('plus-circle', 15)} Registar</button>`;
-            return `<tr class="click${susp ? ' is-muted' : ''}" data-id="${m.id}" tabindex="0"><td><span class="cell-name">${esc(m.nome)}</span></td><td class="num">+258 ${phoneFmt(m.telefone)}</td><td class="r">${s.n}</td><td class="r">${money(s.total)}</td><td class="${s.ultima ? '' : 'muted'}">${s.ultima ? fmtDate(s.ultima) : '—'}</td><td class="r">${action}</td></tr>`;
+            return `<tr class="click${susp ? ' is-muted' : ''}" data-id="${m.id}" tabindex="0"><td class="m-name"><span class="cell-name">${esc(m.nome)}</span></td><td class="num m-tel">+258 ${phoneFmt(m.telefone)}</td><td class="r m-n">${s.n}<span class="m-only"> ${s.n === 1 ? 'contribuição' : 'contribuições'}</span></td><td class="r m-tot">${money(s.total)}</td><td class="m-last ${s.ultima ? '' : 'muted'}"><span class="m-only">Última: </span>${s.ultima ? fmtDate(s.ultima) : '—'}</td><td class="r m-act">${action}</td></tr>`;
           }).join('')}</tbody></table>`
         : `<p class="empty">${tab === 'suspensos' ? 'Nenhum membro suspenso.' : q ? 'Nenhum membro corresponde à pesquisa.' : 'Ainda não há membros. Adicione o primeiro.'}</p>`;
     }
 
     main.innerHTML = `
       ${tabs.length ? `<div class="tabs" role="tablist">${tabs.map(([k, l, n]) => `<button type="button" role="tab" class="tab" data-tab="${k}" aria-selected="${k === tab}">${l}<span class="tab__n num">${n}</span></button>`).join('')}</div>` : ''}
-      <div class="toolbar"><label class="search">${icon('search', 18)}<input class="input" type="search" placeholder="Procurar por nome ou telemóvel" aria-label="Procurar membro" data-q value="${esc(q)}"></label><span class="muted small">${list.length} membros</span></div>
+      <div class="toolbar"><label class="search">${icon('search', 18)}<input class="input" type="search" placeholder="Procurar por nome ou telemóvel" aria-label="Procurar membro" data-q value="${esc(q)}"></label><span class="toolbar__count muted small">${list.length} membros</span></div>
       <div class="card table-card">${table}</div>`;
 
     main.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; paint(); }));
@@ -810,7 +810,7 @@ async function relatorios(ctx) {
         </dl>
 
         ${byGestor.length ? `<section class="report__sec"><h3>Por gestor</h3>
-          <table class="table"><thead><tr><th>Gestor</th><th class="r">Recebimentos</th><th class="r">Parte</th><th class="r">Valor</th></tr></thead>
+          <table class="table gtable"><thead><tr><th>Gestor</th><th class="r"><span class="d-only">Recebimentos</span><span class="m-only">N.º</span></th><th class="r">Parte</th><th class="r">Valor</th></tr></thead>
           <tbody>${byGestor.map((x) => `<tr><td>${esc(x.g.nome)}</td><td class="r">${x.n}</td><td class="r">${pct(total ? (x.v / total) * 100 : 0)}</td><td class="r">${money(x.v)}</td></tr>`).join('')}</tbody>
           <tfoot><tr><td>Total geral</td><td class="r">${list.length}</td><td class="r">100,0%</td><td class="r">${money(total)}</td></tr></tfoot></table></section>` : ''}
 
@@ -818,9 +818,9 @@ async function relatorios(ctx) {
           <table class="table"><tbody>${byMethod.map((x) => `<tr><td>${x.l}</td><td class="r">${x.n}</td><td class="r">${money(x.v)}</td></tr>`).join('')}</tbody></table></section>` : ''}
 
         <section class="report__sec"><h3>Recebimentos</h3>
-          ${list.length ? `<table class="table"><thead><tr><th>Data</th><th>Recibo</th><th>Membro</th><th>Forma</th>${st.gestor ? '' : '<th>Recebido por</th>'}<th class="r">Valor</th></tr></thead>
-          <tbody>${list.map((c) => `<tr><td class="num">${fmtDateShort(c.data)}</td><td class="num muted">${esc(c.ref)}</td><td>${esc(people.get(c.membroId)?.nome || '—')}</td><td>${METODOS[c.metodo]}</td>${st.gestor ? '' : `<td>${esc(people.get(c.registadoPor)?.nome || '—')}</td>`}<td class="r">${money(c.valor)}</td></tr>`).join('')}</tbody>
-          <tfoot><tr><td colspan="${st.gestor ? 4 : 5}">Total</td><td class="r">${money(total)}</td></tr></tfoot></table>`
+          ${list.length ? `<table class="table dtable"><thead><tr><th>Data</th><th>Recibo</th><th>Membro</th><th>Forma</th>${st.gestor ? '' : '<th>Recebido por</th>'}<th class="r">Valor</th></tr></thead>
+          <tbody>${list.map((c) => `<tr><td class="num d-date">${fmtDateShort(c.data)}<span class="m-only"> · ${c.metodo === 'banco' ? 'Transferência' : METODOS[c.metodo]}</span></td><td class="num muted d-ref">${esc(c.ref)}</td><td class="d-mem">${esc(people.get(c.membroId)?.nome || '—')}</td><td class="d-met">${METODOS[c.metodo]}</td>${st.gestor ? '' : `<td class="d-rec"><span class="m-only">Recebido por </span>${esc(people.get(c.registadoPor)?.nome || '—')}</td>`}<td class="r d-amt">${money(c.valor)}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td colspan="${st.gestor ? 4 : 5}" class="d-tl">Total</td><td class="r d-tv">${money(total)}</td></tr></tfoot></table>`
           : '<p class="empty">Não há recebimentos neste período.</p>'}
         </section>
 

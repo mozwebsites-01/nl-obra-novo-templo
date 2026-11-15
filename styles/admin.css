@@ -673,3 +673,144 @@ dialog.sheet[open] { display: flex; }
 /* Colunas de texto podem quebrar linha; números e datas não */
 .table-card .rtable td.c-mem, .table-card .rtable td.c-met { white-space: normal; }
 .table-card .rtable td.c-met { min-width: 170px; max-width: 260px; }
+
+/* =====================================================================
+   Revisão final de alinhamento — telemóvel e tablet
+   Regras: margem lateral de 16 px no telemóvel; todos os blocos da página
+   começam na mesma linha; listas sem tabelas largas; toques com ≥ 40 px.
+   ===================================================================== */
+
+/* Cabeçalho da página no telemóvel: título por cima, ações numa linha inteira por baixo */
+@media (max-width: 760px) {
+  .a-top { flex-direction: column; align-items: stretch; gap: 14px; padding: 20px 16px 16px; }
+  .a-top__actions { display: flex; gap: 8px; }
+  .a-top__actions .btn, .a-top__actions a.btn { flex: 1 1 0; min-width: 0; height: 42px; padding: 0 12px; justify-content: center; white-space: nowrap; }
+  .a-top h1 { font-size: 24px; }
+
+  /* Navegação inferior: 5 entradas no máximo (a Obra abre a partir do Painel) */
+  .a-nav { grid-template-columns: repeat(var(--nav-p, 5), 1fr); }
+  .a-nav a.no-phone { display: none; }
+  .a-nav a { font-size: 12px; }
+
+  /* Ligações dos cartões ("Ver todos", "Editar meta") com área de toque confortável */
+  .card-head .link { display: inline-flex; align-items: center; min-height: 36px; margin: -8px 0; }
+
+  /* Barra de filtros: pesquisa numa linha inteira, filtros em duas colunas */
+  .toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .toolbar .search { grid-column: 1 / -1; max-width: none; }
+  .toolbar .select { width: 100%; min-width: 0; }
+  .toolbar .select:last-child:nth-child(even) { grid-column: 1 / -1; }
+  .toolbar__count { grid-column: 1 / -1; }
+
+  /* Relatórios */
+  .report-controls { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .report-controls .seg { width: 100%; }
+  .period-nav { display: grid; grid-template-columns: 40px 1fr 40px; gap: 8px; }
+  .period-nav__date { width: 100%; }
+  .report-controls .select { width: 100%; min-width: 0; }
+  .report { padding: 20px 16px; }
+  .report__sec { overflow-x: auto; }
+  .report .table { min-width: 100%; }
+  .report__sign { grid-template-columns: 1fr 1fr; gap: 20px; }
+}
+
+/* Títulos das secções do relatório: como os títulos dos cartões */
+.report__sec h3 { font-size: 16px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--navy); margin-bottom: 8px; }
+.report .table th:first-child, .report .table td:first-child { padding-left: 0; }
+.report .table th:last-child, .report .table td:last-child { padding-right: 0; }
+.report .table th { background: none; }
+
+/* Listas (recebimentos e membros) em tablet e telemóvel */
+@media (max-width: 1100px) {
+  .rtable td, .mtable td { padding: 0 !important; border: 0; min-width: 0 !important; max-width: none !important; }
+  .rtable tr { padding: 14px 16px; row-gap: 4px; }
+  .rtable .c-date, .rtable .c-ref, .rtable .c-rec { font-size: 13px; }
+  .rtable .c-rec { margin-top: 2px; }
+
+  .table-card:has(.mtable) { overflow: visible; }
+  .mtable thead { display: none; }
+  .mtable, .mtable tbody { display: block; }
+  .mtable tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 4px; align-items: center;
+    padding: 14px 16px; border-top: 1px solid var(--line);
+  }
+  .mtable tbody tr:first-child { border-top: 0; }
+  .mtable .m-name { grid-column: 1; grid-row: 1; }
+  .mtable .m-tot { grid-column: 2; grid-row: 1; font-weight: 600; }
+  .mtable .m-tel { grid-column: 1; grid-row: 2; font-size: 13px; color: var(--ink-2); }
+  .mtable .m-n { grid-column: 2; grid-row: 2; font-size: 13px; color: var(--ink-2); }
+  .mtable .m-last { grid-column: 1; grid-row: 3; font-size: 13px; color: var(--ink-2); }
+  .mtable .m-act { grid-column: 2; grid-row: 3; justify-self: end; }
+  .mtable .m-act .btn { height: 36px; }
+  .mtable--req .m-act { grid-column: 1 / -1; grid-row: 4; justify-self: stretch; margin-top: 6px; }
+  .mtable--req .row-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .mtable .m-only, .rtable .m-only { display: inline; }
+}
+@media (min-width: 761px) and (max-width: 1100px) {
+  .rtable tr, .mtable tr { padding: 14px 20px; }
+}
+@media (max-width: 1100px) { .mtable .m-act .btn-ghost { padding-right: 0; height: 32px; } }
+@media (max-width: 1100px) {
+  .rtable tbody tr:first-child { border-top: 0; }
+  /* Número do recibo e "Enviado" à direita, ao lado da data e de "Recebido por" */
+  .rtable .c-ref { grid-row: 2 / span 2; align-self: start; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .rtable .c-ref .cell-sent { margin-top: 0; }
+  .rtable .c-rec { grid-column: 1; }
+}
+@media (max-width: 760px) { .toolbar .select { padding-left: 12px; padding-right: 30px; font-size: 14px; } }
+@media (max-width: 760px) { .report__head img { width: 104px; } .report__meta h2 { font-size: 20px; line-height: 1.25; } .report__period { font-size: 14px; } .report__info { gap: 14px 16px; } .report__info dd { font-size: 14px; } .report__kpis .is-main dd { font-size: 20px; } .report__kpis dd { font-size: 16px; } }
+/* Relatório no telemóvel: lista em vez de tabela larga; resumos sem quebras */
+@media (max-width: 760px) {
+  .report__sec { overflow-x: visible; }
+  .report .table th, .report .table td { padding-right: 8px; white-space: nowrap; }
+  .report .table td:first-child { white-space: normal; }
+  .dtable thead { display: none; }
+  .dtable, .dtable tbody, .dtable tfoot { display: block; }
+  .dtable tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 3px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .dtable td { padding: 0 !important; border: 0 !important; white-space: normal !important; }
+  .dtable .d-mem { grid-column: 1; grid-row: 1; font-weight: 500; }
+  .dtable .d-amt { grid-column: 2; grid-row: 1; font-weight: 600; }
+  .dtable .d-date { grid-column: 1; grid-row: 2; font-size: 13px; color: var(--ink-2); }
+  .dtable .d-ref { grid-column: 2; grid-row: 2; font-size: 13px; text-align: right; }
+  .dtable .d-rec { grid-column: 1 / -1; grid-row: 3; font-size: 13px; color: var(--ink-2); }
+  .dtable .d-met { display: none; }
+  .dtable .m-only { display: inline; }
+  .dtable tfoot tr { border-bottom: 0; border-top: 2px solid var(--ink); padding-top: 12px; }
+  .dtable tfoot .d-tl { grid-column: 1; grid-row: 1; font-weight: 700; }
+  .dtable tfoot .d-tv { grid-column: 2; grid-row: 1; font-weight: 700; }
+}
+@media (max-width: 760px) {
+  .gtable th:nth-child(3), .gtable td:nth-child(3) { display: none; }
+  .gtable .m-only { display: inline; }
+  .gtable td:first-child { white-space: nowrap; }
+}
+@media (max-width: 760px) {
+  /* Cartão do gestor: períodos em três colunas iguais, ações a toda a largura */
+  .gestor__periods { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .gestor__periods > div { padding-left: 10px !important; padding-right: 0 !important; }
+  .gestor__periods > div:first-child { padding-left: 0 !important; }
+  .gestor__periods dd { font-size: 14px; white-space: nowrap; }
+  .gestor__foot { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .gestor__foot .btn { width: 100%; height: 40px; justify-content: center; margin: 0 !important; }
+  .gestor__foot .btn-ghost { grid-column: 1 / -1; }
+  .strip > div { padding: 14px 16px; }
+  .strip dd { font-size: 18px; }
+}
+@media (max-width: 400px) { .gestor__periods > div { padding-left: 8px !important; } .gestor__periods dd { font-size: 13px; } }
+@media (max-width: 760px) { .obra-form form .btn { width: 100%; } }
+
+/* Formulário de registo: nunca mais largo do que a janela */
+.rec-form { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
+.rec-form fieldset { min-width: 0; }
+.rec-form .input, .rec-form input[type="date"] { min-width: 0; width: 100%; }
+@media (max-width: 520px) {
+  .rec-form { padding: 18px 16px; gap: 16px; }
+  .rec-form__row { grid-template-columns: minmax(0, 1fr) !important; gap: 16px; }
+  .rec-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .rec-chips button { padding: 0 4px; }
+  .rec-form__foot { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .rec-form__foot .btn { width: 100%; justify-content: center; }
+  .rec-form__foot .btn-secondary { order: 2; }
+  .sheet__head { padding: 14px 12px 14px 16px; }
+  dialog.sheet { width: calc(100% - 24px); max-height: calc(100dvh - 32px); }
+}
