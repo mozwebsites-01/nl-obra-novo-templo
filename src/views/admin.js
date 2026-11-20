@@ -32,6 +32,14 @@ const NAV_GESTOR = [
 ];
 
 const isAdmin = (u) => u.role === 'admin';
+
+// Campos de telemóvel (+258) nas janelas: só algarismos, no máximo 9, no formato 84 123 4567
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (!el.matches?.('.phone input')) return;
+  const d = el.value.replace(/\D/g, '').slice(0, 9);
+  el.value = d.length > 5 ? `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5)}` : d.length > 2 ? `${d.slice(0, 2)} ${d.slice(2)}` : d;
+});
 const sumv = (l) => l.reduce((s, c) => s + c.valor, 0);
 const roleLabel = (u) => u.cargo || (isAdmin(u) ? 'Administração' : 'Gestor');
 
