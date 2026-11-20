@@ -1,6 +1,6 @@
 // Service worker: permite instalar a app e abri-la mesmo sem rede.
 // Estratégia: rede primeiro (sempre a versão mais recente), cache como recurso.
-const CACHE = 'nl-obra-v2';
+const CACHE = 'nl-obra-v3';
 const SHELL = [
   './',
   'index.html',

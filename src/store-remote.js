@@ -32,6 +32,7 @@ const fail = (error, fallback) => {
   if (!error) return;
   const msg = String(error.message || '');
   if (/duplicate key|unique/i.test(msg)) throw new Error('Este número já está registado no sistema.');
+  if (/row-level security|permission denied/i.test(msg)) throw new Error('Sem permissão para esta operação.');
   if (/Failed to fetch|NetworkError|network/i.test(msg)) throw new Error('Sem ligação à internet. Verifique a rede e tente outra vez.');
   throw new Error(msg && !/^\w+_\w+/.test(msg) ? msg : fallback);
 };

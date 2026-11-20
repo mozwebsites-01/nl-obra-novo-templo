@@ -204,3 +204,14 @@ end $$;
 drop trigger if exists contributions_lock_envio on public.contributions;
 create trigger contributions_lock_envio before update on public.contributions
   for each row execute function public.lock_envio();
+
+-- Acesso pela API: só utilizadores com sessão; os visitantes (anon) só usam as funções públicas.
+-- As regras RLS acima decidem o que cada um vê.
+grant usage on schema public to anon, authenticated;
+revoke all on public.settings, public.people, public.contributions from anon;
+grant select, update on public.settings to authenticated;
+grant select, insert, update on public.people to authenticated;
+grant select, insert, update on public.contributions to authenticated;
+grant usage, select on sequence public.receipt_seq to authenticated;
+grant all on public.settings, public.people, public.contributions to service_role;
+grant usage, select on sequence public.receipt_seq to service_role;
