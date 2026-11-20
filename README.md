@@ -81,13 +81,17 @@ Os dados ficam no `localStorage` do navegador (chave `nl.db.v2`).
 
 ## Publicação automática (GitHub → servidor DirectAdmin)
 
-1. Cada commit na `main` é enviado sozinho para o GitHub (hook `scripts/git-hooks/post-commit`;
-   ativado com `git config core.hooksPath scripts/git-hooks`).
-2. A GitHub Action `.github/workflows/deploy.yml` envia os ficheiros por SSH (rsync) para a
-   pasta pública do DirectAdmin. Não apaga nada que já exista no servidor.
-3. Ficam de fora do servidor os ficheiros listados em `.deployignore`.
-4. O `.htaccess` força HTTPS (necessário para instalar a app) e evita cache do service worker.
+Endereço: **https://nataniellitsure.tr** (servidor ValueServer, DirectAdmin, conta `addulam2026`).
 
-Segredos necessários no repositório (Settings › Secrets and variables › Actions):
-`SSH_HOST`, `SSH_PORT`, `SSH_USER`, `SSH_PATH`, `SSH_PRIVATE_KEY` (opcional: `SSH_KNOWN_HOSTS`).
-Para publicar manualmente: separador Actions › "Publicar no servidor" › Run workflow.
+1. Cada commit na `main` é enviado sozinho para o GitHub (hook `scripts/git-hooks/post-commit`).
+2. No servidor, o cron corre `~/nl-obra-deploy.sh` de 5 em 5 minutos: se houver uma versão nova
+   na `main`, atualiza a cópia em `~/nl-obra-src` (git) e copia os ficheiros para
+   `~/domains/nataniellitsure.tr/public_html` (rsync, sem apagar nada). O registo fica em
+   `~/nl-obra-deploy.log`. Cópia do script: `scripts/server/nl-obra-deploy.sh`.
+3. Publicar já, sem esperar: no DirectAdmin › Terminal de comando, `~/nl-obra-deploy.sh force`.
+4. Ficam de fora do servidor os ficheiros listados em `.deployignore`.
+5. HTTPS: certificado Let's Encrypt automático (DirectAdmin › SSL/TLS › ACME). O `.htaccess`
+   força HTTPS.
+
+O SSH do alojamento não está acessível de fora, por isso a GitHub Action
+`.github/workflows/deploy.yml` (rsync por SSH) fica desativada; o envio é feito pelo próprio servidor.
