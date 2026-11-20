@@ -696,8 +696,10 @@ function expenseCell(e) {
     <span class="cell-sub" style="display:block">Pago a ${esc(e.beneficiario || '—')} · ${METODOS[e.metodo]}${e.referencia ? ` · <span class="num">${esc(e.referencia)}</span>` : ''}</span>`;
 }
 
-function expensesTable(list) {
-  return `<table class="table etable">
+// compact: lista da página Despesas — cada linha com altura fixa (nota numa só linha,
+// completa na janela da despesa). No relatório a nota aparece sempre por inteiro.
+function expensesTable(list, { compact = false } = {}) {
+  return `<table class="table etable${compact ? ' etable--compact' : ''}">
     <thead><tr><th>Data</th><th>N.º</th><th>Descrição e nota</th><th>Categoria</th><th class="r">Valor</th></tr></thead>
     <tbody>${list.map((e) => `<tr class="click${e.anulada ? ' is-void' : ''}" data-exp="${e.id}" tabindex="0">
       <td class="num e-date">${fmtDate(e.data)}<span class="m-only"> · ${CATEGORIAS[e.categoria]}</span></td>
@@ -712,7 +714,8 @@ async function despesas(ctx) {
   const [received, expenses, people] = await Promise.all([visibleReceipts(user), store.listExpenses(), peopleMap()]);
   const months = [...new Set(expenses.map((e) => monthKey(e.data)))];
   const f = { q: '', cat: '', mes: '' };
-  let limit = 40;
+  const PAGE = 10;
+  let limit = PAGE;
 
   head('Saídas da obra', 'Despesas',
     `<button type="button" class="btn btn-secondary" data-export>${icon('download', 18)} Exportar CSV</button><button type="button" class="btn btn-primary" data-new>${icon('minus-circle', 18)} Registar despesa</button>`);
@@ -736,17 +739,17 @@ async function despesas(ctx) {
     const list = filtered();
     const voided = list.filter((e) => e.anulada).length;
     table.innerHTML = list.length
-      ? `${expensesTable(list.slice(0, limit))}
-        <div class="table-foot"><span>A mostrar ${Math.min(limit, list.length)} de ${list.length}${voided ? ` (${voided} anulada${voided > 1 ? 's' : ''}, fora do total)` : ''} · total gasto nesta seleção: <strong class="num" style="color:var(--ink)">${money(sumv(validExp(list)))}</strong></span>${list.length > limit ? '<button type="button" class="btn btn-secondary btn-sm" data-more>Mostrar mais</button>' : ''}</div>`
+      ? `${expensesTable(list.slice(0, limit), { compact: true })}
+        <div class="table-foot"><span>A mostrar ${Math.min(limit, list.length)} de ${list.length}${voided ? ` (${voided} anulada${voided > 1 ? 's' : ''}, fora do total)` : ''} · total gasto nesta seleção: <strong class="num" style="color:var(--ink)">${money(sumv(validExp(list)))}</strong></span>${list.length > limit ? `<button type="button" class="btn btn-secondary btn-sm" data-more>Mostrar mais ${Math.min(PAGE, list.length - limit)}</button>` : ''}</div>`
       : `<p class="empty">${expenses.length ? 'Nenhuma despesa corresponde aos filtros.' : 'Ainda não há despesas registadas. Use "Registar despesa" sempre que sair dinheiro da obra.'}</p>`;
-    table.querySelector('[data-more]')?.addEventListener('click', () => { limit += 40; paint(); });
+    table.querySelector('[data-more]')?.addEventListener('click', () => { limit += PAGE; paint(); });
     table.querySelectorAll('tr[data-exp]').forEach((tr) => {
       const open = () => expenseDetail(ctx, list.find((x) => x.id === tr.dataset.exp), people);
       tr.addEventListener('click', open);
       tr.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') open(); });
     });
   };
-  main.querySelectorAll('[data-f]').forEach((el) => el.addEventListener('input', () => { f[el.dataset.f] = el.value; limit = 40; paint(); }));
+  main.querySelectorAll('[data-f]').forEach((el) => el.addEventListener('input', () => { f[el.dataset.f] = el.value; limit = PAGE; paint(); }));
   document.querySelector('[data-new]').addEventListener('click', () => expenseDialog(ctx));
   document.querySelector('[data-export]').addEventListener('click', () => exportExpensesCsv(filtered(), people, `despesas-${isoDate()}`));
   paint();

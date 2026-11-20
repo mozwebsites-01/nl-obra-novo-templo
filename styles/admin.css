@@ -932,3 +932,26 @@ dialog.sheet[open] { display: flex; }
   .exp-dl > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .exp-detail__v { font-size: 24px; }
 }
+
+/* Lista da página Despesas: linhas compactas e de altura igual.
+   A nota fica numa só linha (completa ao abrir a despesa e nos relatórios). */
+.etable--compact .exp-note { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.etable--compact .cell-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etable--compact .cell-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.table-card .etable--compact td.e-desc { max-width: 0; width: 100%; }
+.etable--compact td { padding-top: 14px; padding-bottom: 14px; }
+@media (max-width: 1100px) {
+  .etable--compact tr { row-gap: 2px; }
+  .etable--compact .e-desc { grid-row: 1 / span 2; min-width: 0; overflow: hidden; }
+  .table-card .etable--compact td.e-desc { width: auto; }
+  .etable--compact .e-date { margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+/* Telemóvel: como num extrato bancário — data e valor em cima, texto a toda a largura */
+@media (max-width: 760px) {
+  .etable--compact .e-date { grid-column: 1; grid-row: 1; margin-top: 0; align-self: center; }
+  .etable--compact .e-amt { grid-column: 2; grid-row: 1; }
+  .etable--compact .e-desc { grid-column: 1 / -1; grid-row: 2; margin-top: 4px; }
+  .etable--compact .e-ref { grid-column: 1 / -1; grid-row: 3; display: flex; align-items: center; gap: 8px; text-align: left; margin-top: 2px; }
+  .etable--compact .e-ref .tag-void { margin: 0; }
+}
+@media (max-width: 1100px) { .etable--compact td.e-date { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; min-width: 0; } }
