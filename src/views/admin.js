@@ -3,7 +3,7 @@
 //    cria e suspende gestores, gere membros e a meta da obra;
 //  - gestor: regista membros, lança os valores que recebe (com recibo de receção) e imprime
 //    relatórios — vê apenas os seus próprios recebimentos e o seu saldo acumulado.
-// O painel do membro está em pausa: os membros não entram no sistema.
+// Os membros não entram no sistema: são registados pelos gestores.
 import * as store from '../store.js';
 import {
   esc, icon, avatar, progress, ruler, barChart, receipt, toast, openDialog, confirmDialog, navigate,
@@ -609,8 +609,8 @@ function exportCsv(list, people, filename) {
 async function membros(ctx) {
   const { main, head, user } = ctx;
   const admin = isAdmin(user);
-  let [list, regs, receipts, people] = await Promise.all([store.listMembers(), store.listRegistrations(), visibleReceipts(user), peopleMap()]);
-  let tab = ctx.param === 'pedidos' && admin ? 'pedidos' : ctx.param === 'suspensos' && admin ? 'suspensos' : 'ativos';
+  let [list, receipts, people] = await Promise.all([store.listMembers(), visibleReceipts(user), peopleMap()]);
+  let tab = ctx.param === 'suspensos' && admin ? 'suspensos' : 'ativos';
   let q = '';
   head('Comunidade', 'Membros', `<button type="button" class="btn btn-${admin ? 'primary' : 'secondary'}" data-add>${icon('user-plus', 18)} Adicionar membro</button>`);
 
@@ -623,29 +623,20 @@ async function membros(ctx) {
   const paint = () => {
     const ql = q.toLowerCase();
     const match = (m) => !ql || m.nome.toLowerCase().includes(ql) || m.telefone.includes(ql.replace(/\s/g, ''));
-    const tabs = admin ? [['ativos', 'Ativos', list.filter((m) => m.estado !== 'suspenso').length], ['suspensos', 'Suspensos', list.filter((m) => m.estado === 'suspenso').length], ...(regs.length ? [['pedidos', 'Pedidos antigos', regs.length]] : [])] : [];
+    const tabs = admin ? [['ativos', 'Ativos', list.filter((m) => m.estado !== 'suspenso').length], ['suspensos', 'Suspensos', list.filter((m) => m.estado === 'suspenso').length]] : [];
     let table;
-    if (tab === 'pedidos') {
-      const rows = regs.filter(match);
-      table = rows.length
-        ? `<table class="table mtable mtable--req"><thead><tr><th>Pedido de</th><th>Telemóvel</th><th>Recebido</th><th class="r">Decisão</th></tr></thead><tbody>${rows.map((m) => `
-            <tr><td class="m-name"><span class="cell-name">${esc(m.nome)}</span></td><td class="num m-tel">+258 ${phoneFmt(m.telefone)}</td><td class="m-last">${fmtDateTime(m.criadoEm)}</td>
-            <td class="r m-act"><div class="row-actions"><button type="button" class="btn btn-secondary btn-sm" data-reg="${m.id}" data-ok="0">Recusar</button><button type="button" class="btn btn-primary btn-sm" data-reg="${m.id}" data-ok="1">${icon('check', 16)} Aprovar</button></div></td></tr>`).join('')}</tbody></table>`
-        : '<p class="empty">Não há pedidos por tratar.</p>';
-    } else {
-      const rows = list.filter((m) => (tab === 'suspensos' ? m.estado === 'suspenso' : m.estado !== 'suspenso')).filter(match);
-      table = rows.length
-        ? `<table class="table mtable"><thead><tr><th>Membro</th><th>Telemóvel</th><th class="r">Contribuições</th><th class="r">${admin ? 'Total' : 'Recebido por si'}</th><th>Última</th><th class="r"></th></tr></thead>
-          <tbody>${rows.map((m) => {
-            const s = statsFor(m.id);
-            const susp = m.estado === 'suspenso';
-            const action = admin
-              ? `<button type="button" class="btn btn-ghost btn-sm" data-susp="${m.id}">${susp ? 'Reativar' : 'Suspender'}</button>`
-              : `<button type="button" class="btn btn-secondary btn-sm" data-rec="${m.id}">${icon('plus-circle', 15)} Registar</button>`;
-            return `<tr class="click${susp ? ' is-muted' : ''}" data-id="${m.id}" tabindex="0"><td class="m-name"><span class="cell-name">${esc(m.nome)}</span></td><td class="num m-tel">+258 ${phoneFmt(m.telefone)}</td><td class="r m-n">${s.n}<span class="m-only"> ${s.n === 1 ? 'contribuição' : 'contribuições'}</span></td><td class="r m-tot">${money(s.total)}</td><td class="m-last ${s.ultima ? '' : 'muted'}"><span class="m-only">Última: </span>${s.ultima ? fmtDate(s.ultima) : '—'}</td><td class="r m-act">${action}</td></tr>`;
-          }).join('')}</tbody></table>`
-        : `<p class="empty">${tab === 'suspensos' ? 'Nenhum membro suspenso.' : q ? 'Nenhum membro corresponde à pesquisa.' : 'Ainda não há membros. Adicione o primeiro.'}</p>`;
-    }
+    const rows = list.filter((m) => (tab === 'suspensos' ? m.estado === 'suspenso' : m.estado !== 'suspenso')).filter(match);
+    table = rows.length
+      ? `<table class="table mtable"><thead><tr><th>Membro</th><th>Telemóvel</th><th class="r">Contribuições</th><th class="r">${admin ? 'Total' : 'Recebido por si'}</th><th>Última</th><th class="r"></th></tr></thead>
+        <tbody>${rows.map((m) => {
+          const s = statsFor(m.id);
+          const susp = m.estado === 'suspenso';
+          const action = admin
+            ? `<button type="button" class="btn btn-ghost btn-sm" data-susp="${m.id}">${susp ? 'Reativar' : 'Suspender'}</button>`
+            : `<button type="button" class="btn btn-secondary btn-sm" data-rec="${m.id}">${icon('plus-circle', 15)} Registar</button>`;
+          return `<tr class="click${susp ? ' is-muted' : ''}" data-id="${m.id}" tabindex="0"><td class="m-name"><span class="cell-name">${esc(m.nome)}</span></td><td class="num m-tel">+258 ${phoneFmt(m.telefone)}</td><td class="r m-n">${s.n}<span class="m-only"> ${s.n === 1 ? 'contribuição' : 'contribuições'}</span></td><td class="r m-tot">${money(s.total)}</td><td class="m-last ${s.ultima ? '' : 'muted'}"><span class="m-only">Última: </span>${s.ultima ? fmtDate(s.ultima) : '—'}</td><td class="r m-act">${action}</td></tr>`;
+        }).join('')}</tbody></table>`
+      : `<p class="empty">${tab === 'suspensos' ? 'Nenhum membro suspenso.' : q ? 'Nenhum membro corresponde à pesquisa.' : 'Ainda não há membros. Adicione o primeiro.'}</p>`;
 
     main.innerHTML = `
       ${tabs.length ? `<div class="tabs" role="tablist">${tabs.map(([k, l, n]) => `<button type="button" role="tab" class="tab" data-tab="${k}" aria-selected="${k === tab}">${l}<span class="tab__n num">${n}</span></button>`).join('')}</div>` : ''}
@@ -656,14 +647,6 @@ async function membros(ctx) {
     const qi = main.querySelector('[data-q]');
     qi.addEventListener('input', () => { q = qi.value; paint(); const n = main.querySelector('[data-q]'); n.focus(); n.setSelectionRange(q.length, q.length); });
 
-    main.querySelectorAll('[data-reg]').forEach((b) => b.addEventListener('click', async () => {
-      const aprovar = b.dataset.ok === '1';
-      const m = regs.find((x) => x.id === b.dataset.reg);
-      await store.reviewRegistration(m.id, aprovar, user.id);
-      toast(aprovar ? `${m.nome} adicionado aos membros` : 'Pedido recusado');
-      [list, regs] = await Promise.all([store.listMembers(), store.listRegistrations()]);
-      paint();
-    }));
     main.querySelectorAll('[data-susp]').forEach((b) => b.addEventListener('click', async (e) => {
       e.stopPropagation();
       const m = list.find((x) => x.id === b.dataset.susp);

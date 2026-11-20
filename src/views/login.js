@@ -61,7 +61,7 @@ export async function renderLogin(root) {
       let m;
       try { m = await store.findMemberByPhone(telefone); } catch (ex) { return phoneStep(ex.message); }
       if (!m) return phoneStep('Este número não tem acesso ao sistema. Fale com a administração da obra.');
-      if (m.role === 'membro') return statusStep('pausado');
+      if (m.role === 'membro') return phoneStep('Este número não tem acesso ao sistema. Fale com a administração da obra.');
       if (m.estado === 'suspenso') return statusStep('suspenso');
       pinStep();
     });
@@ -74,53 +74,8 @@ export async function renderLogin(root) {
     });
   }
 
-  function registerStep(notice = '') {
-    step.innerHTML = `
-      <button type="button" class="pin-back" data-back>${icon('chevron-left', 16)} Voltar</button>
-      <h1 class="login__title">Pedir acesso</h1>
-      <p class="login__lead">${esc(notice || 'Preencha os seus dados. A tesouraria confirma que faz parte da igreja e aprova o acesso.')}</p>
-      <form class="login__form" novalidate>
-        <div class="field"><label for="nome">Nome completo</label><input class="input login__input" id="nome" autocomplete="name" placeholder="Nome e apelido"></div>
-        <div class="field"><label for="rtel">Número de telemóvel</label>
-          <div class="phone"><span class="phone__prefix">+258</span><input id="rtel" inputmode="numeric" autocomplete="tel-national" placeholder="84 123 4567" value="${esc(telefone ? phoneFmt(telefone) : '')}"></div></div>
-        <div class="login__row">
-          <div class="field"><label for="p1">Crie um PIN</label><input class="input login__input" id="p1" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="4 dígitos"></div>
-          <div class="field"><label for="p2">Repita o PIN</label><input class="input login__input" id="p2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="4 dígitos"></div>
-        </div>
-        <p class="error-text" data-error hidden></p>
-        <button class="btn btn-primary btn-block" type="submit">Enviar pedido</button>
-      </form>`;
-    step.querySelector('[data-back]').addEventListener('click', () => phoneStep());
-    const tel = step.querySelector('#rtel');
-    maskPhone(tel);
-    step.querySelector(telefone ? '#nome' : '#nome').focus();
-    step.querySelector('form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const nome = step.querySelector('#nome').value.trim().replace(/\s+/g, ' ');
-      const digits = tel.value.replace(/\D/g, '');
-      const p1 = step.querySelector('#p1').value, p2 = step.querySelector('#p2').value;
-      const err = step.querySelector('[data-error]');
-      let msg = nome.split(' ').length < 2 ? 'Indique o nome e o apelido.'
-        : !isValidPhone(digits) ? 'Indique os 9 dígitos do telemóvel, começando por 8.'
-        : !/^\d{4}$/.test(p1) ? 'O PIN tem de ter 4 dígitos.'
-        : p1 !== p2 ? 'Os dois PIN não coincidem.' : '';
-      if (!msg) {
-        try {
-          await store.registerMember({ nome, telefone: digits, pin: p1 });
-          telefone = digits;
-          return statusStep('enviado');
-        } catch (ex) { msg = ex.message; }
-      }
-      err.textContent = msg; err.hidden = !msg;
-    });
-  }
-
   const STATUS = {
-    enviado: ['check', 'Pedido enviado', 'A tesouraria foi notificada e vai rever o seu pedido. Assim que for aprovado, entre com o seu número e o PIN que criou.'],
-    pendente: ['history', 'Pedido em análise', 'O seu pedido de acesso ainda aguarda aprovação da tesouraria. Tente novamente mais tarde.'],
-    recusado: ['x', 'Pedido não aprovado', 'Não foi possível aprovar o acesso com este número. Fale com a secretaria da igreja.'],
     suspenso: ['key-round', 'Acesso suspenso', 'O acesso desta conta está suspenso. Fale com a administração para o reativar.'],
-    pausado: ['history', 'Área do membro em pausa', 'Por agora, as contribuições são registadas pelos gestores da obra. Entregue a sua contribuição a um gestor e receberá o recibo.'],
   };
 
   function statusStep(kind) {

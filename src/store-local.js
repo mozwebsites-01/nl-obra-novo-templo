@@ -144,7 +144,7 @@ export async function findMemberByPhone(telefone) {
 
 // Estados do membro: pendente (aguarda aprovação) · ativo · suspenso · recusado
 const isActive = (m) => !m.estado || m.estado === 'ativo';
-// Painel do membro em pausa: só a administração e os gestores entram
+// Só a administração e os gestores entram no sistema
 export const STAFF = ['admin', 'gestor'];
 const canSignIn = (m) => STAFF.includes(m.role) && isActive(m);
 

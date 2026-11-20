@@ -325,7 +325,7 @@ export async function markNotified(id, { por, canal }) {
   return c;
 }
 
-// Funções do painel do membro (em pausa) — sem efeito nesta versão
+// Sem painel do membro: funções mantidas só por compatibilidade
 export async function listMessages() { return []; }
 export async function listThreads() { return []; }
 export async function unreadMessagesForAdmin() { return 0; }

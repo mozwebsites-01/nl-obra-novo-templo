@@ -80,7 +80,7 @@ async function route() {
   // Recibo aberto pelo membro a partir do WhatsApp: público, sem sessão
   if (hash.startsWith('/recibo/')) return renderPublicReceipt(app, hash.slice('/recibo/'.length));
   const user = await store.getSessionUser();
-  // Painel do membro em pausa: só existe a área de administração (admin e gestores)
+  // Só existe a área de gestão (administração e gestores)
   const home = user?.role === 'admin' ? '#/a/painel' : '#/a/inicio';
   armIdle();
 

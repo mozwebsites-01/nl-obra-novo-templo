@@ -38,8 +38,8 @@ Depois abra http://localhost:4173. Não há dependências para instalar (Node 18
 
 ## Regras
 
-- **Painel do membro em pausa**: os membros não entram no sistema; quem tentar vê
-  "Área do membro em pausa". O código continua em `src/views/member.js` para voltar a ativar.
+- **Sem painel do membro**: os membros não entram no sistema. São registados pelos gestores e
+  recebem o comprovativo pelo WhatsApp (com a ligação para o recibo em PDF).
 - **Administração (principal)** vê tudo: total geral da obra, saldo acumulado de cada gestor,
   todos os recebimentos e relatórios de todos (ou de um gestor). Cria, suspende e reativa
   gestores, gere membros e a meta da obra.
@@ -65,7 +65,7 @@ Os dados ficam no `localStorage` do navegador (chave `nl.db.v2`).
 - `assets/brand/` — logótipos originais recortados ao contorno (sem alterações ao desenho)
 - `styles/tokens.css` — paleta e tipografia derivadas do logótipo
 - `src/store.js` — camada de dados (assíncrona; trocar por Supabase sem mexer nas vistas)
-- `src/views/` — entrada, membro (telemóvel) e administração (desktop)
+- `src/views/` — entrada, área de gestão e página pública do recibo
 
 ## Ainda não incluído
 
