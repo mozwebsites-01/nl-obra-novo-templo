@@ -91,15 +91,24 @@
 .login__demo-item b { font-size: 14px; font-weight: 600; }
 .login__demo-item span { font-size: 13px; color: rgba(255, 255, 255, 0.6); font-variant-numeric: tabular-nums; }
 
+/* Centrado verticalmente com margens automáticas: em ecrãs baixos o cartão nunca é cortado */
+.login__card { margin-top: auto; }
+.login__foot { margin-bottom: auto; }
+
 @media (max-width: 520px) {
-  .login { justify-content: flex-start; padding: 28px 14px 20px; }
-  .login__card { padding: 26px 20px 22px; border-radius: 20px; }
+  .login {
+    justify-content: flex-start;
+    padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  }
+  .login__card { padding: 26px 22px 24px; border-radius: 20px; box-shadow: 0 16px 40px rgba(11, 16, 96, 0.18); }
+  .login__obra { padding-bottom: 18px; }
+  .login__foot { margin-top: 18px; padding: 0 12px; font-size: 13px; line-height: 1.5; text-wrap: balance; }
   .login__logo { width: 132px; }
   .login__demo-item { grid-template-columns: auto 1fr; row-gap: 0; height: auto; padding: 10px 14px; }
   .login__demo-item span { grid-column: 2; }
 }
 @media (prefers-reduced-motion: reduce) { .login__card { animation: none; } }
-@media (max-width: 520px) { .login__watermark { width: 120vmin; right: -40vmin; bottom: -30vmin; } }
+@media (max-width: 520px) { .login__watermark { width: 92vw; right: 4vw; bottom: -18vw; opacity: 0.035; } }
 
 /* Campos de texto no cartão escuro (configuração inicial) */
 .login .input { height: 50px; border-radius: 12px; color: #fff; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.2); }
