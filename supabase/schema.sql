@@ -215,3 +215,87 @@ grant select, insert, update on public.contributions to authenticated;
 grant usage, select on sequence public.receipt_seq to authenticated;
 grant all on public.settings, public.people, public.contributions to service_role;
 grant usage, select on sequence public.receipt_seq to service_role;
+
+-- =====================================================================
+-- Despesas: saídas de dinheiro da obra (só a administração regista e vê)
+-- Uma despesa registada nunca se altera nem se apaga. Se houver um engano, a
+-- administração ANULA a despesa (com o motivo) e ela fica no histórico, fora dos totais.
+-- Esta secção só acrescenta: não mexe nas tabelas nem nos dados existentes.
+-- =====================================================================
+create sequence if not exists public.expense_seq;
+
+create table if not exists public.expenses (
+  id uuid primary key default gen_random_uuid(),
+  ref text unique,
+  data date not null,
+  valor numeric(14,2) not null check (valor > 0 and valor <= 100000000),
+  categoria text not null check (categoria in ('materiais', 'mao_obra', 'transporte', 'equipamento', 'licencas', 'servicos', 'outros')),
+  descricao text not null check (char_length(descricao) between 3 and 120),
+  -- Nota obrigatória: para que foi o dinheiro e porquê (aparece nos relatórios)
+  nota text not null check (char_length(nota) between 10 and 500),
+  beneficiario text not null default '',
+  metodo text not null check (metodo in ('mpesa', 'emola', 'banco', 'numerario')),
+  referencia text not null default '',
+  registado_por uuid not null references public.people (id),
+  registado_em timestamptz not null default now(),
+  anulada_em timestamptz,
+  anulada_por uuid references public.people (id),
+  motivo_anulacao text
+);
+create index if not exists expenses_data on public.expenses (data desc);
+
+-- Número da despesa: DS-AAAA-000001, gerado no servidor
+create or replace function public.set_expense_ref() returns trigger
+language plpgsql as $$
+begin
+  if new.data > (now() at time zone 'Africa/Maputo')::date then raise exception 'A data da despesa não pode ser futura.'; end if;
+  new.ref := 'DS-' || to_char(now() at time zone 'Africa/Maputo', 'YYYY') || '-' || lpad(nextval('public.expense_seq')::text, 6, '0');
+  new.registado_em := now();
+  new.anulada_em := null; new.anulada_por := null; new.motivo_anulacao := null;
+  return new;
+end $$;
+drop trigger if exists expenses_ref on public.expenses;
+create trigger expenses_ref before insert on public.expenses
+  for each row execute function public.set_expense_ref();
+
+-- Só é possível anular (uma vez, com motivo). Nenhum outro campo muda.
+create or replace function public.lock_expense() returns trigger
+language plpgsql as $$
+begin
+  if (new.ref, new.data, new.valor, new.categoria, new.descricao, new.nota, new.beneficiario, new.metodo, new.referencia, new.registado_por, new.registado_em)
+     is distinct from (old.ref, old.data, old.valor, old.categoria, old.descricao, old.nota, old.beneficiario, old.metodo, old.referencia, old.registado_por, old.registado_em)
+  then raise exception 'Uma despesa registada não pode ser alterada. Anule-a e registe-a de novo.'; end if;
+  if old.anulada_em is not null then raise exception 'Esta despesa já foi anulada.'; end if;
+  if new.anulada_por is null or char_length(trim(coalesce(new.motivo_anulacao, ''))) < 3 then raise exception 'Indique o motivo da anulação.'; end if;
+  new.anulada_em := now();
+  return new;
+end $$;
+drop trigger if exists expenses_lock on public.expenses;
+create trigger expenses_lock before update on public.expenses
+  for each row execute function public.lock_expense();
+
+-- Nunca se apagam despesas (nem por engano)
+create or replace function public.no_delete() returns trigger
+language plpgsql as $$
+begin
+  raise exception 'Os registos financeiros não podem ser apagados.';
+end $$;
+drop trigger if exists expenses_no_delete on public.expenses;
+create trigger expenses_no_delete before delete on public.expenses
+  for each row execute function public.no_delete();
+
+alter table public.expenses enable row level security;
+drop policy if exists expenses_read on public.expenses;
+create policy expenses_read on public.expenses for select to authenticated using (public.my_role() = 'admin');
+drop policy if exists expenses_insert on public.expenses;
+create policy expenses_insert on public.expenses for insert to authenticated
+  with check (public.my_role() = 'admin' and registado_por = public.my_person_id());
+drop policy if exists expenses_void on public.expenses;
+create policy expenses_void on public.expenses for update to authenticated
+  using (public.my_role() = 'admin') with check (public.my_role() = 'admin' and anulada_por = public.my_person_id());
+
+revoke all on public.expenses from anon;
+grant select, insert, update on public.expenses to authenticated;
+grant usage, select on sequence public.expense_seq to authenticated;
+grant all on public.expenses to service_role;
+grant usage, select on sequence public.expense_seq to service_role;

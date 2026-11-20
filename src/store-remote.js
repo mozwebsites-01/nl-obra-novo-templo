@@ -24,7 +24,7 @@ const sb = window.supabase.createClient(CONFIG.url, CONFIG.anonKey, {
 });
 
 const DEFAULT_SETTINGS = { obraNome: 'Obra do Novo Templo', meta: 5000000, inicio: isoDate(), prazo: isoDate(), whatsapp: '879470600' };
-let db = { settings: { ...DEFAULT_SETTINGS }, members: [], contributions: [] };
+let db = { settings: { ...DEFAULT_SETTINGS }, members: [], contributions: [], expenses: [] };
 let me = null;
 let syncedAt = 0;
 
@@ -51,6 +51,11 @@ const toContribution = (r) => ({
   notificadoEm: r.notificado_em, notificadoPor: r.notificado_por, notificadoCanal: r.notificado_canal,
   envioEstado: r.envio_estado || null, envioErro: r.envio_erro || null, envioEm: r.envio_em || null,
 });
+const toExpense = (r) => ({
+  id: r.id, ref: r.ref, data: r.data, valor: Number(r.valor), categoria: r.categoria, descricao: r.descricao, nota: r.nota || '',
+  beneficiario: r.beneficiario || '', metodo: r.metodo, referencia: r.referencia || '', registadoPor: r.registado_por, registadoEm: r.registado_em,
+  anulada: !!r.anulada_em, anuladaEm: r.anulada_em, anuladaPor: r.anulada_por, motivoAnulacao: r.motivo_anulacao,
+});
 const toSettings = (r) => ({ obraNome: r.obra_nome, meta: Number(r.meta), inicio: r.inicio, prazo: r.prazo, whatsapp: r.whatsapp || '879470600' });
 
 const byRecent = (a, b) => b.data.localeCompare(a.data) || String(b.declaradoEm).localeCompare(String(a.declaradoEm));
@@ -60,12 +65,16 @@ const sum = (list) => list.reduce((s, c) => s + c.valor, 0);
 export async function sync(force = false) {
   if (!me) return;
   if (!force && Date.now() - syncedAt < 4000) return;
-  const [s, p, c] = await Promise.all([
+  const isAdmin = me.role === 'admin';
+  const [s, p, c, e] = await Promise.all([
     sb.from('settings').select('*').eq('id', 1).maybeSingle(),
     sb.from('people').select('*').order('nome'),
     sb.from('contributions').select('*').order('data', { ascending: false }).order('registado_em', { ascending: false }),
+    isAdmin ? sb.from('expenses').select('*').order('data', { ascending: false }).order('registado_em', { ascending: false }) : { data: [] },
   ]);
   fail(s.error || p.error || c.error, 'Não foi possível carregar os dados.');
+  // Despesas: se a tabela ainda não existir no servidor, o resto do sistema continua a funcionar
+  db.expenses = e.error ? [] : (e.data || []).map(toExpense);
   if (s.data) db.settings = toSettings(s.data);
   db.members = p.data.map(toPerson);
   db.contributions = c.data.map(toContribution);
@@ -325,6 +334,25 @@ export async function markNotified(id, { por, canal }) {
   const c = toContribution(data);
   db.contributions = db.contributions.map((x) => (x.id === id ? c : x));
   return c;
+}
+
+// Despesas (só a administração) ----------------------------------------------
+export async function listExpenses() { return db.expenses.slice(); }
+export async function recordExpense({ data, valor, categoria, descricao, nota, beneficiario, metodo, referencia, registadoPor }) {
+  const { data: row, error } = await sb.from('expenses').insert({
+    data, valor, categoria, descricao, nota, beneficiario: beneficiario || '', metodo, referencia: referencia || '', registado_por: registadoPor,
+  }).select().single();
+  fail(error, 'Não foi possível registar a despesa.');
+  const e = toExpense(row);
+  db.expenses.unshift(e);
+  return e;
+}
+export async function voidExpense(id, { motivo, por }) {
+  const { data: row, error } = await sb.from('expenses').update({ anulada_por: por, motivo_anulacao: motivo, anulada_em: new Date().toISOString() }).eq('id', id).select().single();
+  fail(error, 'Não foi possível anular a despesa.');
+  const e = toExpense(row);
+  db.expenses = db.expenses.map((x) => (x.id === id ? e : x));
+  return e;
 }
 
 // Envio automático pelo WhatsApp: o servidor recebe o PDF e envia-o do número oficial

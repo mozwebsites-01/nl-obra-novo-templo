@@ -832,3 +832,103 @@ dialog.sheet[open] { display: flex; }
 .deliver--auto.is-busy .deliver__icon { color: var(--navy); }
 .deliver__err { margin-top: 10px; font-size: 13px; color: var(--bad); line-height: 1.45; }
 .cell-sent.is-bad { color: var(--bad); }
+
+/* =====================================================================
+   Caixa da obra e despesas
+   ===================================================================== */
+/* Faixa: total recebido · total gasto · saldo disponível */
+.fin { display: grid; grid-template-columns: 1fr 1fr 1.2fr; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); margin-bottom: 20px; overflow: hidden; }
+.dash .fin { margin-bottom: 0; }
+.fin__item { padding: 18px 22px; min-width: 0; }
+.fin__item + .fin__item { border-left: 1px solid var(--line); }
+.fin__l { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.fin__l .i { color: var(--ink-2); }
+.fin__v { margin-top: 6px; font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; white-space: nowrap; }
+.fin__s { margin-top: 2px; font-size: 13px; color: var(--ink-2); }
+.fin__item.is-main { background: var(--navy); }
+.fin__item.is-main .fin__l, .fin__item.is-main .fin__s { color: rgba(255, 255, 255, 0.7); }
+.fin__item.is-main .fin__v { color: #fff; font-size: 24px; }
+.fin__item.is-main.is-neg .fin__v { color: #FFB4A8; }
+
+/* Tabela de despesas: descrição, nota completa e a quem foi pago */
+.etable td { vertical-align: top; }
+.table-card .etable td.e-desc { white-space: normal; min-width: 260px; max-width: 460px; }
+.table-card .etable td.e-cat { white-space: normal; min-width: 130px; }
+.exp-note { display: block; margin-top: 3px; font-size: 13px; line-height: 1.45; color: var(--ink); opacity: 0.82; }
+.etable .cell-sub { margin-top: 3px; }
+.etable tr.is-void td { color: var(--ink-2); }
+.etable tr.is-void .e-amt, .etable tr.is-void .cell-name { text-decoration: line-through; text-decoration-color: var(--ink-2); }
+.tag-void { display: inline-block; margin-top: 4px; padding: 1px 7px; border-radius: 4px; background: #F6E9E9; color: var(--bad); font-family: var(--font-ui); font-size: 12px; font-weight: 600; letter-spacing: 0; }
+.e-ref .tag-void { display: table; }
+.report .etable td.e-desc { white-space: normal; min-width: 0; }
+.report .etable td.e-cat { white-space: normal; }
+.report .etable td.e-date, .report .etable td.e-ref { white-space: nowrap; }
+.etable--total { margin-top: 0; }
+.etable--total tfoot td:first-child { width: 100%; }
+
+/* Janela da despesa */
+.exp-saldo.is-over { color: var(--bad); }
+.exp-saldo.is-over strong { color: var(--bad); }
+.exp-detail { display: grid; gap: 18px; }
+.exp-detail__top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.exp-detail__v { font-size: 28px; font-weight: 700; color: var(--navy); letter-spacing: -0.02em; }
+.exp-detail__v.is-void { color: var(--ink-2); text-decoration: line-through; }
+.exp-dl { display: grid; gap: 12px; }
+.exp-dl > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; }
+.exp-dl dt { font-size: 13px; color: var(--ink-2); }
+.exp-dl dd { font-size: 14px; font-weight: 500; }
+.exp-dl__note { display: block; font-weight: 400; line-height: 1.5; white-space: pre-wrap; }
+.exp-void { display: grid; gap: 8px; padding: 14px; border-radius: var(--r-lg); background: #FBF6F6; border: 1px solid #EDD9D9; }
+.exp-void label { font-size: 13px; font-weight: 500; }
+.btn-danger-ghost { color: var(--bad); }
+.btn-danger-ghost:hover { border-color: var(--bad); }
+
+/* Relatório financeiro */
+.report__kpis--fin { grid-template-columns: repeat(3, 1fr) 1.3fr; }
+.report__kpi-sub { margin-top: 2px; font-size: 13px; color: var(--ink-2); }
+.report__kpis .is-main.is-neg dd { color: var(--bad); }
+.ctable td:first-child { width: 100%; }
+.ctable td.r { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .dash__fin { order: 0; grid-column: 1 / -1; }
+}
+@media (max-width: 1100px) {
+  .dash__fin { order: 0; }
+}
+
+/* Telemóvel e tablet: a tabela de despesas passa a lista */
+@media (max-width: 1100px) {
+  .etable thead { display: none; }
+  .etable, .etable tbody, .etable tfoot { display: block; }
+  .etable tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 14px; row-gap: 4px; padding: 14px 16px; border-top: 1px solid var(--line); }
+  .etable td { padding: 0 !important; border: 0 !important; white-space: normal !important; min-width: 0 !important; max-width: none !important; }
+  .etable .e-desc { grid-column: 1; grid-row: 1 / span 2; }
+  .etable .e-amt { grid-column: 2; grid-row: 1; text-align: right; font-size: 14px; }
+  .etable .e-ref { grid-column: 2; grid-row: 2; text-align: right; font-size: 13px; }
+  .etable .e-ref .tag-void { margin-left: auto; }
+  .etable .e-date { grid-column: 1 / -1; grid-row: 3; margin-top: 2px; font-size: 13px; color: var(--ink-2); }
+  .etable .e-date .m-only { display: inline; }
+  .etable .e-cat { display: none; }
+  .report .etable tr { padding: 12px 0; border-top: 0; border-bottom: 1px solid var(--line); }
+  .etable--total tfoot tr { grid-template-columns: minmax(0, 1fr) auto; border-top: 2px solid var(--ink) !important; border-bottom: 0 !important; padding-top: 12px !important; }
+  .etable--total tfoot td { font-weight: 700; }
+}
+@media (min-width: 761px) and (max-width: 1100px) { .table-card .etable tr { padding: 14px 24px; } }
+
+@media (max-width: 760px) {
+  .fin { grid-template-columns: 1fr 1fr; margin-bottom: 16px; }
+  .fin__item { padding: 14px 16px; }
+  .fin__item.is-main { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; }
+  .fin__item.is-main .fin__v { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; font-size: 22px; }
+  .fin__item.is-main .fin__s { grid-column: 1; }
+  .fin__item + .fin__item { border-left: 0; }
+  .fin__item:nth-child(2) { border-left: 1px solid var(--line); }
+  .fin__item:not(.is-main) { border-top: 1px solid var(--line); }
+  .fin__v { font-size: 17px; }
+  .report__kpis--fin { grid-template-columns: 1fr 1fr; }
+  .report__kpis--fin > div:nth-child(3) { border-left: 0; }
+  .report__kpis--fin > div:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .exp-dl > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .exp-detail__v { font-size: 24px; }
+}

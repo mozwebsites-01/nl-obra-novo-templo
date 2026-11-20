@@ -1,5 +1,5 @@
-// Relatório de recebimentos em PDF (A4): cabeçalho com o logótipo, indicadores,
-// resumos por gestor e por forma de pagamento, lista completa e linhas de assinatura.
+// Relatórios em PDF (A4): cabeçalho com o logótipo, identificação, indicadores e as
+// secções que o ecrã envia (tabelas), com linhas de assinatura no fim.
 import { newPdf, saveBlob, PDF_COLORS } from './share.js';
 import { money } from './format.js';
 
@@ -29,28 +29,28 @@ export async function reportPdf(rep) {
 
   // Identificação
   let y = 47;
-  const info = [['Gestor', rep.who], ['Período', rep.range], ['Emitido em', rep.issuedAt], ['Emitido por', rep.issuedBy]];
   const iw = [0.24, 0.34, 0.22, 0.2].map((f) => f * (W - 2 * M));
   let ix = M;
-  info.forEach(([l, v], i) => {
+  rep.info.forEach(([l, v], i) => {
     font('regular', 7.5, MUTED); doc.text(l, ix, y);
     font('semibold', 9, INK); doc.text(fit(v, iw[i] - 4), ix, y + 5);
     ix += iw[i];
   });
 
-  // Indicadores
+  // Indicadores (o principal fica destacado)
   y += 12;
   doc.setDrawColor(...LINE); doc.setLineWidth(0.3);
-  doc.roundedRect(M, y, W - 2 * M, 20, 1.5, 1.5, 'S');
-  const kpis = [['Total recebido', money(rep.total)], ['Recebimentos', String(rep.count)], ['Membros', String(rep.members)], ['Valor médio', money(rep.avg)]];
-  const kw = [0.34, 0.2, 0.18, 0.28].map((f) => f * (W - 2 * M));
+  const kTotal = rep.kpis.reduce((s, k) => s + (k.main ? 1.35 : 1), 0);
   let kx = M;
-  kpis.forEach(([l, v], i) => {
-    if (i) doc.line(kx, y + 3, kx, y + 17);
-    font('regular', 7.5, MUTED); doc.text(l, kx + 5, y + 7);
-    font(i ? 'semibold' : 'bold', i ? 11 : 13, i ? INK : NAVY); doc.text(v, kx + 5, y + 14.5);
-    kx += kw[i];
+  rep.kpis.forEach((k, i) => {
+    const kw = ((k.main ? 1.35 : 1) / kTotal) * (W - 2 * M);
+    if (k.main) { doc.setFillColor(...TINT); doc.rect(kx, y, kw, 20, 'F'); }
+    if (i) doc.line(kx, y + (k.main ? 0 : 3), kx, y + (k.main ? 20 : 17));
+    font('regular', 7.5, MUTED); doc.text(k.l, kx + 5, y + 7);
+    font(k.main ? 'bold' : 'semibold', k.main ? 12.5 : 10.5, k.main || k.strong ? NAVY : INK); doc.text(fit(k.v, kw - 8), kx + 5, y + 14.5);
+    kx += kw;
   });
+  doc.roundedRect(M, y, W - 2 * M, 20, 1.5, 1.5, 'S');
   y += 30;
 
   // Rodapé de cada página (preenchido no fim, quando se sabe o total de páginas)
@@ -72,7 +72,8 @@ export async function reportPdf(rep) {
     y += 4;
   };
 
-  // Tabela com cabeçalho repetido quando muda de página
+  // Tabela com cabeçalho repetido quando muda de página. Uma linha pode trazer texto
+  // por baixo de uma coluna (ex.: a nota de uma despesa), com quebra de linha.
   const table = (cols, rows, total) => {
     const widths = cols.map((c) => c.w * (W - 2 * M));
     const head = () => {
@@ -85,17 +86,39 @@ export async function reportPdf(rep) {
       });
       y += 7.5;
     };
-    const line = (cells, bold) => {
-      if (y + 7 > BOTTOM) { newPage(); head(); }
+    const line = (row, bold) => {
+      const cells = Array.isArray(row) ? row : row.cells;
+      const sub = Array.isArray(row) ? null : row.sub;
+      let subLines = [];
+      if (sub) {
+        font('regular', 7.5, MUTED);
+        subLines = sub.lines.flatMap((t) => doc.splitTextToSize(t, widths[sub.col] - 5));
+      }
+      // Colunas com quebra de linha (ex.: categoria): o texto passa à linha seguinte
+      const wraps = cells.map((v, i) => {
+        if (!cols[i].wrap || bold) return null;
+        font('regular', 8, INK);
+        return doc.splitTextToSize(String(v ?? ''), widths[i] - 5);
+      });
+      const wrapExtra = Math.max(0, ...wraps.map((l) => (l ? l.length - 1 : 0)));
+      const h = 7 + Math.max(subLines.length * 3.5 + (subLines.length ? 1.5 : 0), wrapExtra * 3.6);
+      if (y + h > BOTTOM) { newPage(); head(); }
       let x = M;
       cells.forEach((v, i) => {
         const c = cols[i];
         font(bold || c.strong ? 'semibold' : 'regular', 8, c.muted && !bold ? MUTED : INK);
-        const t = fit(v, widths[i] - 5);
-        doc.text(t, c.r ? x + widths[i] - 2.5 : x + 2.5, y + 4.8, { align: c.r ? 'right' : 'left' });
+        // Linha de total: o rótulo ocupa também as colunas vazias à sua direita
+        let room = widths[i];
+        if (bold && i === 0) for (let j = 1; j < cells.length && cells[j] === ''; j++) room += widths[j];
+        if (wraps[i]) wraps[i].forEach((t2, k) => doc.text(t2, x + 2.5, y + 4.8 + k * 3.6));
+        else doc.text(fit(v, room - 5), c.r ? x + widths[i] - 2.5 : x + 2.5, y + 4.8, { align: c.r ? 'right' : 'left' });
+        if (sub && i === sub.col) {
+          font('regular', 7.5, MUTED);
+          subLines.forEach((t2, k) => doc.text(t2, x + 2.5, y + 8.6 + k * 3.5));
+        }
         x += widths[i];
       });
-      y += 7;
+      y += h;
       doc.setDrawColor(...LINE); doc.line(M, y, W - M, y);
     };
     head();
@@ -108,31 +131,11 @@ export async function reportPdf(rep) {
     y += 8;
   };
 
-  if (rep.byGestor.length) {
-    section('Por gestor');
-    table(
-      [{ label: 'Gestor', w: 0.46 }, { label: 'Recebimentos', w: 0.18, r: true }, { label: 'Parte', w: 0.14, r: true }, { label: 'Valor', w: 0.22, r: true, strong: true }],
-      rep.byGestor.map((g) => [g.nome, String(g.n), g.pct, money(g.v)]),
-      ['Total geral', String(rep.count), '100,0%', money(rep.total)],
-    );
-  }
-
-  if (rep.byMethod.length) {
-    section('Por forma de pagamento');
-    table(
-      [{ label: 'Forma de pagamento', w: 0.6 }, { label: 'Recebimentos', w: 0.18, r: true }, { label: 'Valor', w: 0.22, r: true, strong: true }],
-      rep.byMethod.map((m) => [m.l, String(m.n), money(m.v)]),
-    );
-  }
-
-  section('Recebimentos', 30);
-  if (rep.rows.length) {
-    const cols = rep.showGestor
-      ? [{ label: 'Data', w: 0.095 }, { label: 'Recibo', w: 0.18, muted: true }, { label: 'Membro', w: 0.235 }, { label: 'Forma', w: 0.155 }, { label: 'Recebido por', w: 0.165 }, { label: 'Valor', w: 0.17, r: true, strong: true }]
-      : [{ label: 'Data', w: 0.11 }, { label: 'Recibo', w: 0.2, muted: true }, { label: 'Membro', w: 0.34 }, { label: 'Forma', w: 0.17 }, { label: 'Valor', w: 0.18, r: true, strong: true }];
-    table(cols, rep.rows, [...cols.slice(0, -1).map((_, i) => (i === 0 ? 'Total' : '')), money(rep.total)]);
-  } else {
-    font('regular', 9, MUTED); doc.text('Não há recebimentos neste período.', M, y + 4); y += 14;
+  for (const sec of rep.sections) {
+    if (!sec.rows.length && !sec.empty) continue;
+    section(sec.title, sec.rows.length ? 30 : 16);
+    if (sec.rows.length) table(sec.cols, sec.rows, sec.total);
+    else { font('regular', 9, MUTED); doc.text(sec.empty, M, y + 4); y += 14; }
   }
 
   // Assinaturas
@@ -140,7 +143,7 @@ export async function reportPdf(rep) {
   if (y + 21 > BOTTOM) newPage();
   y += 14;
   const sw = 64;
-  [[M, rep.signLeft], [W - M - sw, 'Administração']].forEach(([x, label]) => {
+  [[M, rep.signLeft], [W - M - sw, rep.signRight || 'Administração']].forEach(([x, label]) => {
     doc.setDrawColor(...INK); doc.setLineWidth(0.3); doc.line(x, y, x + sw, y);
     font('regular', 8, MUTED); doc.text(label, x + sw / 2, y + 5, { align: 'center' });
   });

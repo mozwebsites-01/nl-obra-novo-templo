@@ -410,6 +410,32 @@ export async function recordContribution({ membroId, valor, metodo, referencia, 
   return c;
 }
 
+// Despesas (saídas de dinheiro) ----------------------------------------------
+// Nunca se alteram nem se apagam: um engano corrige-se anulando (fica no histórico).
+export async function listExpenses() {
+  return (db.expenses || []).slice().sort((a, b) => b.data.localeCompare(a.data) || b.registadoEm.localeCompare(a.registadoEm));
+}
+export async function recordExpense({ data, valor, categoria, descricao, nota, beneficiario, metodo, referencia, registadoPor }) {
+  db.expenses = db.expenses || [];
+  db.expSeq = (db.expSeq || 0) + 1;
+  const e = {
+    id: uid('e_'), ref: `DS-${new Date().getFullYear()}-${String(db.expSeq).padStart(6, '0')}`,
+    data, valor, categoria, descricao, nota, beneficiario: beneficiario || '', metodo, referencia: referencia || '',
+    registadoPor, registadoEm: new Date().toISOString(), anulada: false, anuladaEm: null, anuladaPor: null, motivoAnulacao: null,
+  };
+  db.expenses.push(e);
+  save();
+  return e;
+}
+export async function voidExpense(id, { motivo, por }) {
+  const e = (db.expenses || []).find((x) => x.id === id);
+  if (!e) throw new Error('Despesa não encontrada.');
+  if (e.anulada) throw new Error('Esta despesa já foi anulada.');
+  Object.assign(e, { anulada: true, anuladaEm: new Date().toISOString(), anuladaPor: por, motivoAnulacao: motivo });
+  save();
+  return e;
+}
+
 // O comprovativo foi enviado ao membro (WhatsApp ou partilha do PDF)
 export async function markNotified(id, { por, canal }) {
   const c = db.contributions.find((x) => x.id === id);

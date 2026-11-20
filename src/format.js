@@ -4,6 +4,17 @@ const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'o
 const MESES_LONGOS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const DIAS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
 
+// Categorias das despesas da obra
+export const CATEGORIAS = {
+  materiais: 'Materiais de construção',
+  mao_obra: 'Mão de obra',
+  transporte: 'Transporte',
+  equipamento: 'Equipamento e ferramentas',
+  licencas: 'Licenças e taxas',
+  servicos: 'Serviços técnicos',
+  outros: 'Outras despesas',
+};
+
 export const METODOS = {
   mpesa: 'M-Pesa',
   emola: 'e-Mola',

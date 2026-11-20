@@ -9,7 +9,7 @@ import {
   esc, icon, avatar, progress, ruler, barChart, receipt, toast, openDialog, confirmDialog, navigate,
 } from '../ui.js';
 import {
-  METODOS, money, pct, fmtDate, fmtDateShort, fmtDateTime, fmtLongToday, monthKey, monthShort, monthLong,
+  METODOS, CATEGORIAS, money, pct, fmtDate, fmtDateShort, fmtDateTime, fmtLongToday, monthKey, monthShort, monthLong,
   phoneFmt, isValidPhone, isoDate, parseAmount, defaultPayer, firstName, periodRange, shiftPeriod,
 } from '../format.js';
 import { receiptData, whatsappLink, downloadPdf, sharePdf, canSharePdf, pdfButton, warmPdf, receiptPdf } from '../share.js';
@@ -19,7 +19,8 @@ import { downloadReportPdf } from '../reportpdf.js';
 const NAV_ADMIN = [
   ['painel', 'Painel', 'layout-dashboard', 'Painel'],
   ['gestores', 'Gestores', 'key-round', 'Gestores'],
-  ['contribuicoes', 'Recebimentos', 'receipt', 'Recebidos'],
+  ['contribuicoes', 'Recebimentos', 'receipt', 'Entradas'],
+  ['despesas', 'Despesas', 'wallet', 'Saídas'],
   ['membros', 'Membros', 'users', 'Membros'],
   ['relatorios', 'Relatórios', 'file-text', 'Relatórios'],
   ['obra', 'Obra', 'landmark', 'Obra', 'no-phone'],
@@ -60,6 +61,24 @@ function totals(list, today = isoDate()) {
     semana: pick((c) => c.data >= wk.from && c.data <= wk.to),
     mes: pick((c) => c.data >= mo.from && c.data <= mo.to),
   };
+}
+
+// Caixa da obra ------------------------------------------------------------
+// Saldo disponível = tudo o que foi recebido − todas as despesas (as anuladas não contam)
+const validExp = (l) => l.filter((e) => !e.anulada);
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+function caixa(received, expenses) {
+  const entradas = sumv(received);
+  const saidas = sumv(validExp(expenses));
+  return { entradas, saidas, saldo: entradas - saidas };
+}
+function finStrip(received, expenses) {
+  const k = caixa(received, expenses);
+  return `<section class="fin" aria-label="Caixa da obra">
+    <div class="fin__item"><p class="fin__l">${icon('receipt', 16)} Total recebido</p><p class="fin__v num">${money(k.entradas)}</p><p class="fin__s">${plural(received.length, 'recibo emitido', 'recibos emitidos')}</p></div>
+    <div class="fin__item"><p class="fin__l">${icon('wallet', 16)} Total gasto</p><p class="fin__v num">${money(k.saidas)}</p><p class="fin__s">${plural(validExp(expenses).length, 'despesa registada', 'despesas registadas')}</p></div>
+    <div class="fin__item is-main${k.saldo < 0 ? ' is-neg' : ''}"><p class="fin__l">Saldo disponível</p><p class="fin__v num">${money(k.saldo)}</p><p class="fin__s">recebido menos gasto</p></div>
+  </section>`;
 }
 
 // Totais por mês dos últimos n meses (para os gráficos)
@@ -138,7 +157,7 @@ export async function renderAdmin(root, page, user, param) {
     navigate('#/a/contribuicoes');
   });
 
-  const pages = { painel, inicio, gestores, contribuicoes, membros, relatorios, obra };
+  const pages = { painel, inicio, gestores, contribuicoes, despesas, membros, relatorios, obra };
   await pages[page](ctx);
   window.scrollTo(0, 0);
 }
@@ -390,9 +409,9 @@ async function recordDialog(ctx, preMemberId = '') {
 // Painel (administração) --------------------------------------------------
 async function painel(ctx) {
   const { main, head } = ctx;
-  const [s, series, settings, all, methods, people, gestoresList] = await Promise.all([
+  const [s, series, settings, all, methods, people, gestoresList, expenses] = await Promise.all([
     store.obraSummary(), store.monthlySeries(), store.getSettings(), visibleReceipts(ctx.user),
-    store.methodBreakdown(), peopleMap(), store.listGestores(),
+    store.methodBreakdown(), peopleMap(), store.listGestores(), store.listExpenses(),
   ]);
   const cur = series[series.length - 1];
   const geral = totals(all);
@@ -400,6 +419,7 @@ async function painel(ctx) {
 
   main.innerHTML = `
     <div class="dash">
+      <div class="dash__wide dash__fin">${finStrip(all, expenses)}</div>
       <section class="card obra-card dash__obra" aria-label="Progresso da obra">
         <div class="card-head" style="margin-bottom:0"><p class="eyebrow">Total angariado<span class="d-only"> · ${esc(settings.obraNome)}</span></p><a href="#/a/obra" class="link small">Editar meta</a></div>
         <div class="obra-card__amount"><span class="display-num">${money(s.arrecadado, { decimals: false, unit: false })}</span><span class="unit">MT</span></div>
@@ -667,6 +687,224 @@ function exportCsv(list, people, filename) {
   toast(`${list.length} recebimentos exportados`);
 }
 
+// Despesas (administração) --------------------------------------------------
+// Cada despesa tem descrição, nota obrigatória (para que foi e porquê), categoria,
+// a quem foi paga e como. Nunca se apaga: um engano corrige-se anulando, com motivo.
+function expenseCell(e) {
+  return `<span class="cell-name">${esc(e.descricao)}</span>
+    <span class="exp-note">${esc(e.nota)}</span>
+    <span class="cell-sub" style="display:block">Pago a ${esc(e.beneficiario || '—')} · ${METODOS[e.metodo]}${e.referencia ? ` · <span class="num">${esc(e.referencia)}</span>` : ''}</span>`;
+}
+
+function expensesTable(list) {
+  return `<table class="table etable">
+    <thead><tr><th>Data</th><th>N.º</th><th>Descrição e nota</th><th>Categoria</th><th class="r">Valor</th></tr></thead>
+    <tbody>${list.map((e) => `<tr class="click${e.anulada ? ' is-void' : ''}" data-exp="${e.id}" tabindex="0">
+      <td class="num e-date">${fmtDate(e.data)}<span class="m-only"> · ${CATEGORIAS[e.categoria]}</span></td>
+      <td class="num muted e-ref">${esc(e.ref)}${e.anulada ? '<span class="tag-void">Anulada</span>' : ''}</td>
+      <td class="e-desc">${expenseCell(e)}</td>
+      <td class="e-cat">${CATEGORIAS[e.categoria]}</td>
+      <td class="r cell-amount e-amt">${money(e.valor)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+async function despesas(ctx) {
+  const { main, head, user } = ctx;
+  const [received, expenses, people] = await Promise.all([visibleReceipts(user), store.listExpenses(), peopleMap()]);
+  const months = [...new Set(expenses.map((e) => monthKey(e.data)))];
+  const f = { q: '', cat: '', mes: '' };
+  let limit = 40;
+
+  head('Saídas da obra', 'Despesas',
+    `<button type="button" class="btn btn-secondary" data-export>${icon('download', 18)} Exportar CSV</button><button type="button" class="btn btn-primary" data-new>${icon('minus-circle', 18)} Registar despesa</button>`);
+
+  main.innerHTML = `
+    ${finStrip(received, expenses)}
+    <div class="toolbar">
+      <label class="search">${icon('search', 18)}<input class="input" type="search" placeholder="Procurar por descrição, nota, pago a ou n.º" data-f="q" aria-label="Procurar"></label>
+      <select class="select" data-f="cat" aria-label="Categoria"><option value="">Todas as categorias</option>${Object.entries(CATEGORIAS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
+      <select class="select" data-f="mes" aria-label="Mês"><option value="">Todos os meses</option>${months.map((k) => `<option value="${k}">${monthLong(k)}</option>`).join('')}</select>
+    </div>
+    <div class="card table-card" data-table></div>`;
+
+  const filtered = () => {
+    const q = f.q.toLowerCase();
+    return expenses.filter((e) => (!f.cat || e.categoria === f.cat) && (!f.mes || monthKey(e.data) === f.mes)
+      && (!q || [e.descricao, e.nota, e.beneficiario, e.ref, e.referencia].some((v) => v && v.toLowerCase().includes(q))));
+  };
+  const table = main.querySelector('[data-table]');
+  const paint = () => {
+    const list = filtered();
+    const voided = list.filter((e) => e.anulada).length;
+    table.innerHTML = list.length
+      ? `${expensesTable(list.slice(0, limit))}
+        <div class="table-foot"><span>A mostrar ${Math.min(limit, list.length)} de ${list.length}${voided ? ` (${voided} anulada${voided > 1 ? 's' : ''}, fora do total)` : ''} · total gasto nesta seleção: <strong class="num" style="color:var(--ink)">${money(sumv(validExp(list)))}</strong></span>${list.length > limit ? '<button type="button" class="btn btn-secondary btn-sm" data-more>Mostrar mais</button>' : ''}</div>`
+      : `<p class="empty">${expenses.length ? 'Nenhuma despesa corresponde aos filtros.' : 'Ainda não há despesas registadas. Use "Registar despesa" sempre que sair dinheiro da obra.'}</p>`;
+    table.querySelector('[data-more]')?.addEventListener('click', () => { limit += 40; paint(); });
+    table.querySelectorAll('tr[data-exp]').forEach((tr) => {
+      const open = () => expenseDetail(ctx, list.find((x) => x.id === tr.dataset.exp), people);
+      tr.addEventListener('click', open);
+      tr.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') open(); });
+    });
+  };
+  main.querySelectorAll('[data-f]').forEach((el) => el.addEventListener('input', () => { f[el.dataset.f] = el.value; limit = 40; paint(); }));
+  document.querySelector('[data-new]').addEventListener('click', () => expenseDialog(ctx));
+  document.querySelector('[data-export]').addEventListener('click', () => exportExpensesCsv(filtered(), people, `despesas-${isoDate()}`));
+  paint();
+}
+
+async function expenseDialog(ctx) {
+  const [received, expenses] = await Promise.all([visibleReceipts(ctx.user), store.listExpenses()]);
+  const saldo = caixa(received, expenses).saldo;
+  const today = isoDate();
+  const d = openDialog(`
+    <header class="sheet__head"><h2>Registar despesa</h2><button class="icon-btn" data-close aria-label="Fechar">${icon('x')}</button></header>
+    <form class="sheet__body rec-form" novalidate>
+      <div class="field">
+        <label for="ex-v">Valor gasto</label>
+        <div class="rec-amount"><input id="ex-v" inputmode="decimal" autocomplete="off" placeholder="0"><span>MT</span></div>
+        <p class="hint exp-saldo" data-saldo>Saldo disponível: <strong class="num">${money(saldo)}</strong></p>
+      </div>
+      <div class="field"><label for="ex-d">Descrição</label><input class="input" id="ex-d" maxlength="120" autocomplete="off" placeholder="Ex.: Compra de 200 sacos de cimento"></div>
+      <div class="field">
+        <div class="rec-form__label"><label for="ex-n">Nota</label><span class="hint num" data-count>0/500</span></div>
+        <textarea class="textarea" id="ex-n" rows="3" maxlength="500" placeholder="Para que foi o dinheiro, quem autorizou e o que foi recebido em troca."></textarea>
+        <p class="hint">A nota é obrigatória e aparece nos relatórios, para total transparência.</p>
+      </div>
+      <div class="rec-form__row">
+        <div class="field"><label for="ex-c">Categoria</label><select class="select" id="ex-c"><option value="">Escolha a categoria</option>${Object.entries(CATEGORIAS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
+        <div class="field"><label for="ex-dt">Data da despesa</label><input class="input" type="date" id="ex-dt" max="${today}" value="${today}"></div>
+      </div>
+      <fieldset class="field">
+        <legend>Forma de pagamento</legend>
+        <div class="seg">${Object.entries(METODOS).map(([k, l]) => `<label><input type="radio" name="metodo" value="${k}" ${k === 'numerario' ? 'checked' : ''}><span>${k === 'banco' ? 'Banco' : l}</span></label>`).join('')}</div>
+      </fieldset>
+      <div class="rec-form__row">
+        <div class="field"><label for="ex-b">Pago a</label><input class="input" id="ex-b" maxlength="80" autocomplete="off" placeholder="Fornecedor ou pessoa"></div>
+        <div class="field" data-ref-field hidden><label for="ex-r">Referência <span class="muted" style="font-weight:400">(opcional)</span></label><input class="input num" id="ex-r" autocomplete="off" autocapitalize="characters" placeholder="N.º da transação ou fatura"></div>
+      </div>
+      <p class="error-text" data-error hidden></p>
+      <div class="rec-form__foot"><button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="submit" class="btn btn-primary">${icon('check', 18)} Registar despesa</button></div>
+    </form>`, { className: 'sheet--wide' });
+
+  const form = d.querySelector('form');
+  const $ = (q) => d.querySelector(q);
+  const syncRef = () => { $('[data-ref-field]').hidden = form.metodo.value === 'numerario'; };
+  form.querySelectorAll('[name=metodo]').forEach((r) => r.addEventListener('change', syncRef));
+  $('#ex-n').addEventListener('input', (e) => { $('[data-count]').textContent = `${e.target.value.length}/500`; });
+  $('#ex-v').addEventListener('input', () => {
+    const v = parseAmount($('#ex-v').value);
+    $('[data-saldo]').classList.toggle('is-over', Number.isFinite(v) && v > saldo);
+  });
+  $('#ex-v').focus();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const valor = parseAmount($('#ex-v').value);
+    const descricao = $('#ex-d').value.trim().replace(/\s+/g, ' ');
+    const nota = $('#ex-n').value.trim();
+    const categoria = $('#ex-c').value;
+    const data = $('#ex-dt').value;
+    const beneficiario = $('#ex-b').value.trim().replace(/\s+/g, ' ');
+    const metodo = form.metodo.value;
+    const err = $('[data-error]');
+    const msg = !Number.isFinite(valor) || valor <= 0 ? 'Indique o valor gasto.'
+      : valor > 100_000_000 ? 'Verifique o valor: parece demasiado alto.'
+      : descricao.length < 3 ? 'Descreva a despesa (ex.: compra de cimento).'
+      : nota.length < 10 ? 'Escreva a nota: para que foi o dinheiro e porquê (pelo menos 10 letras).'
+      : !categoria ? 'Escolha a categoria.'
+      : !data || data > today ? 'Indique a data da despesa (não pode ser futura).'
+      : beneficiario.length < 3 ? 'Indique a quem foi pago (fornecedor ou pessoa).' : '';
+    err.textContent = msg; err.hidden = !msg;
+    if (msg) return;
+    if (valor > saldo) {
+      const ok = await confirmDialog({
+        title: 'Valor acima do saldo disponível',
+        text: `O saldo disponível é ${money(saldo)}. Esta despesa deixa a caixa com ${money(saldo - valor)}. Registar mesmo assim?`,
+        confirmLabel: 'Registar mesmo assim',
+      });
+      if (!ok) return;
+    }
+    const btn = form.querySelector('[type=submit]');
+    btn.disabled = true;
+    try {
+      const x = await store.recordExpense({
+        valor, descricao, nota, categoria, data, beneficiario, metodo,
+        referencia: metodo === 'numerario' ? '' : $('#ex-r').value.trim().toUpperCase(), registadoPor: ctx.user.id,
+      });
+      d.close();
+      toast(`Despesa ${x.ref} registada · ${money(x.valor)}`);
+      ctx.refresh();
+    } catch (ex) {
+      err.textContent = ex.message; err.hidden = false; btn.disabled = false;
+    }
+  });
+}
+
+function expenseDetail(ctx, e, people) {
+  const row = (l, v) => `<div><dt>${l}</dt><dd>${v}</dd></div>`;
+  const d = openDialog(`
+    <header class="sheet__head"><h2>Despesa <span class="num">${esc(e.ref)}</span></h2><button class="icon-btn" data-close aria-label="Fechar">${icon('x')}</button></header>
+    <div class="sheet__body exp-detail">
+      <div class="exp-detail__top">
+        <p class="exp-detail__v num${e.anulada ? ' is-void' : ''}">${money(e.valor)}</p>
+        ${e.anulada ? '<span class="tag-void">Anulada</span>' : `<span class="muted small">${CATEGORIAS[e.categoria]}</span>`}
+      </div>
+      <dl class="exp-dl">
+        ${row('Descrição', esc(e.descricao))}
+        ${row('Nota', `<span class="exp-dl__note">${esc(e.nota)}</span>`)}
+        ${row('Categoria', CATEGORIAS[e.categoria])}
+        ${row('Data da despesa', fmtDate(e.data))}
+        ${row('Pago a', esc(e.beneficiario || '—'))}
+        ${row('Forma de pagamento', `${METODOS[e.metodo]}${e.referencia ? ` · <span class="num">${esc(e.referencia)}</span>` : ''}`)}
+        ${row('Registado por', `${esc(people.get(e.registadoPor)?.nome || '—')} <span class="muted">· ${fmtDateTime(e.registadoEm)}</span>`)}
+        ${e.anulada ? row('Anulada', `${esc(people.get(e.anuladaPor)?.nome || '—')} <span class="muted">· ${fmtDateTime(e.anuladaEm)}</span>`) + row('Motivo da anulação', esc(e.motivoAnulacao || '—')) : ''}
+      </dl>
+      ${e.anulada ? '' : `<div class="exp-void" data-void-box hidden>
+        <label for="ex-m">Motivo da anulação</label>
+        <textarea class="textarea" id="ex-m" rows="2" maxlength="200" placeholder="Ex.: valor registado em duplicado"></textarea>
+        <p class="hint">A despesa fica no histórico, marcada como anulada, e deixa de contar nos totais.</p>
+        <p class="error-text" data-error hidden></p>
+      </div>`}
+    </div>
+    <div class="sheet__foot">
+      ${e.anulada ? '<button type="button" class="btn btn-secondary" data-close>Fechar</button>' : `<button type="button" class="btn btn-secondary btn-danger-ghost" data-void>${icon('ban', 18)} Anular despesa</button><button type="button" class="btn btn-primary" data-close>Fechar</button>`}
+    </div>`);
+
+  const vb = d.querySelector('[data-void]');
+  vb?.addEventListener('click', async () => {
+    const box = d.querySelector('[data-void-box]');
+    if (box.hidden) { box.hidden = false; vb.innerHTML = `${icon('ban', 18)} Confirmar anulação`; d.querySelector('#ex-m').focus(); return; }
+    const motivo = d.querySelector('#ex-m').value.trim();
+    const err = d.querySelector('[data-error]');
+    if (motivo.length < 3) { err.textContent = 'Indique o motivo da anulação.'; err.hidden = false; return; }
+    vb.disabled = true;
+    try {
+      await store.voidExpense(e.id, { motivo, por: ctx.user.id });
+      d.close();
+      toast(`Despesa ${e.ref} anulada`);
+      ctx.refresh();
+    } catch (ex) { err.textContent = ex.message; err.hidden = false; vb.disabled = false; }
+  });
+}
+
+function downloadCsv(rows, filename) {
+  const csv = '\ufeff' + rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `${filename}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function exportExpensesCsv(list, people, filename) {
+  const rows = [['N.º', 'Data', 'Descrição', 'Nota', 'Categoria', 'Pago a', 'Forma de pagamento', 'Referência', 'Valor (MT)', 'Estado', 'Registado por']];
+  for (const e of list) {
+    rows.push([e.ref, e.data, e.descricao, e.nota, CATEGORIAS[e.categoria], e.beneficiario, METODOS[e.metodo], e.referencia, e.valor.toFixed(2).replace('.', ','), e.anulada ? `Anulada: ${e.motivoAnulacao || ''}` : 'Válida', people.get(e.registadoPor)?.nome || '']);
+  }
+  downloadCsv(rows, filename);
+  toast(`${list.length} despesas exportadas`);
+}
+
 // Membros -----------------------------------------------------------------
 async function membros(ctx) {
   const { main, head, user } = ctx;
@@ -785,33 +1023,67 @@ function addMemberDialog(onDone) {
 // Relatórios ----------------------------------------------------------------
 const KINDS = [['dia', 'Diário'], ['semana', 'Semanal'], ['mes', 'Mensal']];
 const KIND_TITLE = { dia: 'Relatório diário de recebimentos', semana: 'Relatório semanal de recebimentos', mes: 'Relatório mensal de recebimentos' };
+const KIND_FIN = { dia: 'Relatório financeiro diário', semana: 'Relatório financeiro semanal', mes: 'Relatório financeiro mensal' };
+const KIND_FILE = { dia: 'diario', semana: 'semanal', mes: 'mensal' };
+const metodoNome = (k) => (k === 'banco' ? 'Transferência' : METODOS[k]);
 
+// Relatórios. A administração (com "Todos os gestores") vê o relatório financeiro completo:
+// saldo anterior + recebido − gasto = saldo final, com todas as despesas e as suas notas.
+// O gestor (ou a administração a ver um só gestor) vê o relatório dos recebimentos.
 async function relatorios(ctx) {
   const { main, head, user } = ctx;
   const admin = isAdmin(user);
-  const [all, people, gestoresList, settings] = await Promise.all([visibleReceipts(user), peopleMap(), store.listGestores(), store.getSettings()]);
+  const [all, people, gestoresList, settings, allExpenses] = await Promise.all([
+    visibleReceipts(user), peopleMap(), store.listGestores(), store.getSettings(), admin ? store.listExpenses() : [],
+  ]);
+  const expenses = validExp(allExpenses);
   const st = { kind: 'dia', anchor: isoDate(), gestor: admin ? sessionStorage.getItem('nl.gestor') || '' : user.id };
   sessionStorage.removeItem('nl.gestor');
 
-  head('Relatórios', 'Relatório de recebimentos',
+  head('Relatórios', admin ? 'Relatório financeiro' : 'Relatório de recebimentos',
     `<button type="button" class="btn btn-secondary" data-export>${icon('download', 18)} Exportar CSV</button><button type="button" class="btn btn-primary" data-pdf-report>${icon('download', 18)} Baixar PDF</button>`);
 
+  // Tudo o que o relatório mostra, calculado num só sítio (ecrã, PDF e CSV usam o mesmo)
   const current = () => {
     const r = periodRange(st.kind, st.anchor);
+    const fin = admin && !st.gestor;
     const list = all.filter((c) => c.data >= r.from && c.data <= r.to && (!st.gestor || c.registadoPor === st.gestor));
-    return { r, list };
+    const exps = fin ? expenses.filter((e) => e.data >= r.from && e.data <= r.to).sort((a, b) => a.data.localeCompare(b.data) || a.ref.localeCompare(b.ref)) : [];
+    const total = sumv(list);
+    const gasto = sumv(exps);
+    const anterior = fin ? sumv(all.filter((c) => c.data < r.from)) - sumv(expenses.filter((e) => e.data < r.from)) : 0;
+    const whoLabel = st.gestor ? people.get(st.gestor)?.nome || '—' : 'Todos os gestores';
+    // Todos os que receberam: os gestores e, se tiver recebido valores, a própria administração
+    const receivers = [...gestoresList, ...[...new Set(list.map((c) => c.registadoPor))].filter((id) => !gestoresList.some((g) => g.id === id)).map((id) => people.get(id)).filter(Boolean)];
+    const byGestor = admin && !st.gestor
+      ? receivers.map((g) => { const l = list.filter((c) => c.registadoPor === g.id); return { nome: g.role === 'admin' ? `${g.nome} (administração)` : g.nome, n: l.length, v: sumv(l), pct: pct(total ? (sumv(l) / total) * 100 : 0) }; })
+      : [];
+    const byMethod = Object.keys(METODOS).map((k) => { const x = list.filter((c) => c.metodo === k); return { l: metodoNome(k), n: x.length, v: sumv(x) }; }).filter((x) => x.n);
+    const byCat = Object.entries(CATEGORIAS).map(([k, l]) => { const x = exps.filter((e) => e.categoria === k); return { l, n: x.length, v: sumv(x) }; }).filter((x) => x.n);
+    return {
+      r, fin, list, exps, total, gasto, anterior, final: anterior + total - gasto, whoLabel, byGestor, byMethod, byCat,
+      members: new Set(list.map((c) => c.membroId)).size,
+      range: `${fmtDate(r.from)}${r.from !== r.to ? ` a ${fmtDate(r.to)}` : ''}`,
+      title: fin ? KIND_FIN[st.kind] : KIND_TITLE[st.kind],
+    };
   };
 
   const paint = () => {
-    const { r, list } = current();
-    const total = sumv(list);
-    const membersN = new Set(list.map((c) => c.membroId)).size;
-    const whoLabel = st.gestor ? people.get(st.gestor)?.nome || '—' : 'Todos os gestores';
-    const byGestor = admin && !st.gestor
-      ? gestoresList.map((g) => { const l = list.filter((c) => c.registadoPor === g.id); return { g, n: l.length, v: sumv(l) }; })
-      : [];
-    const byMethod = Object.entries(METODOS).map(([k, l]) => { const x = list.filter((c) => c.metodo === k); return { l, n: x.length, v: sumv(x) }; }).filter((x) => x.n);
-    const now = new Date();
+    const x = current();
+    const { r } = x;
+    const kpis = x.fin
+      ? `<dl class="report__kpis report__kpis--fin">
+          <div><dt>Saldo anterior</dt><dd class="num">${money(x.anterior)}</dd></div>
+          <div><dt>Recebido</dt><dd class="num">${money(x.total)}</dd><p class="report__kpi-sub">${plural(x.list.length, 'recebimento', 'recebimentos')}</p></div>
+          <div><dt>Gasto</dt><dd class="num">${money(x.gasto)}</dd><p class="report__kpi-sub">${plural(x.exps.length, 'despesa', 'despesas')}</p></div>
+          <div class="is-main${x.final < 0 ? ' is-neg' : ''}"><dt>Saldo final</dt><dd class="num">${money(x.final)}</dd></div>
+        </dl>`
+      : `<dl class="report__kpis">
+          <div class="is-main"><dt>Total recebido</dt><dd class="num">${money(x.total)}</dd></div>
+          <div><dt>Recebimentos</dt><dd class="num">${x.list.length}</dd></div>
+          <div><dt>Membros</dt><dd class="num">${x.members}</dd></div>
+          <div><dt>Valor médio</dt><dd class="num">${money(x.list.length ? x.total / x.list.length : 0)}</dd></div>
+        </dl>`;
 
     main.innerHTML = `
       <div class="report-controls">
@@ -829,46 +1101,55 @@ async function relatorios(ctx) {
           <img src="assets/brand/logo-lockup-navy.svg" alt="Nataniel Litsure Ministries" width="120" height="53">
           <div class="report__meta">
             <p class="eyebrow">${esc(settings.obraNome)}</p>
-            <h2>${KIND_TITLE[st.kind]}</h2>
+            <h2>${x.title}</h2>
             <p class="report__period">${esc(r.label)}</p>
           </div>
         </header>
         <dl class="report__info">
-          <div><dt>Gestor</dt><dd>${esc(whoLabel)}</dd></div>
-          <div><dt>Período</dt><dd class="num">${fmtDate(r.from)}${r.from !== r.to ? ` a ${fmtDate(r.to)}` : ''}</dd></div>
-          <div><dt>Emitido em</dt><dd class="num">${fmtDateTime(now.toISOString())}</dd></div>
+          <div><dt>Gestor</dt><dd>${esc(x.whoLabel)}</dd></div>
+          <div><dt>Período</dt><dd class="num">${x.range}</dd></div>
+          <div><dt>Emitido em</dt><dd class="num">${fmtDateTime(new Date().toISOString())}</dd></div>
           <div><dt>Emitido por</dt><dd>${esc(user.nome)}</dd></div>
         </dl>
 
-        <dl class="report__kpis">
-          <div class="is-main"><dt>Total recebido</dt><dd class="num">${money(total)}</dd></div>
-          <div><dt>Recebimentos</dt><dd class="num">${list.length}</dd></div>
-          <div><dt>Membros</dt><dd class="num">${membersN}</dd></div>
-          <div><dt>Valor médio</dt><dd class="num">${money(list.length ? total / list.length : 0)}</dd></div>
-        </dl>
+        ${kpis}
 
-        ${byGestor.length ? `<section class="report__sec"><h3>Por gestor</h3>
+        ${x.fin ? `<section class="report__sec"><h3>Resumo de caixa</h3>
+          <table class="table ctable"><tbody>
+            <tr><td>Saldo no início do período</td><td class="r">${money(x.anterior)}</td></tr>
+            <tr><td>Entradas · contribuições recebidas</td><td class="r">+ ${money(x.total)}</td></tr>
+            <tr><td>Saídas · despesas da obra</td><td class="r">− ${money(x.gasto)}</td></tr>
+          </tbody><tfoot><tr><td>Saldo no fim do período</td><td class="r">${money(x.final)}</td></tr></tfoot></table></section>` : ''}
+
+        ${x.byGestor.length ? `<section class="report__sec"><h3>Recebido por gestor</h3>
           <table class="table gtable"><thead><tr><th>Gestor</th><th class="r"><span class="d-only">Recebimentos</span><span class="m-only">N.º</span></th><th class="r">Parte</th><th class="r">Valor</th></tr></thead>
-          <tbody>${byGestor.map((x) => `<tr><td>${esc(x.g.nome)}</td><td class="r">${x.n}</td><td class="r">${pct(total ? (x.v / total) * 100 : 0)}</td><td class="r">${money(x.v)}</td></tr>`).join('')}</tbody>
-          <tfoot><tr><td>Total geral</td><td class="r">${list.length}</td><td class="r">100,0%</td><td class="r">${money(total)}</td></tr></tfoot></table></section>` : ''}
+          <tbody>${x.byGestor.map((g) => `<tr><td>${esc(g.nome)}</td><td class="r">${g.n}</td><td class="r">${g.pct}</td><td class="r">${money(g.v)}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td>Total recebido</td><td class="r">${x.list.length}</td><td class="r">100,0%</td><td class="r">${money(x.total)}</td></tr></tfoot></table></section>` : ''}
 
-        ${byMethod.length ? `<section class="report__sec"><h3>Por forma de pagamento</h3>
-          <table class="table"><tbody>${byMethod.map((x) => `<tr><td>${x.l}</td><td class="r">${x.n}</td><td class="r">${money(x.v)}</td></tr>`).join('')}</tbody></table></section>` : ''}
+        ${x.byMethod.length ? `<section class="report__sec"><h3>Recebido por forma de pagamento</h3>
+          <table class="table"><tbody>${x.byMethod.map((m) => `<tr><td>${m.l}</td><td class="r">${m.n}</td><td class="r">${money(m.v)}</td></tr>`).join('')}</tbody></table></section>` : ''}
 
         <section class="report__sec"><h3>Recebimentos</h3>
-          ${list.length ? `<table class="table dtable"><thead><tr><th>Data</th><th>Recibo</th><th>Membro</th><th>Forma</th>${st.gestor ? '' : '<th>Recebido por</th>'}<th class="r">Valor</th></tr></thead>
-          <tbody>${list.map((c) => `<tr><td class="num d-date">${fmtDateShort(c.data)}<span class="m-only"> · ${c.metodo === 'banco' ? 'Transferência' : METODOS[c.metodo]}</span></td><td class="num muted d-ref">${esc(c.ref)}</td><td class="d-mem">${esc(people.get(c.membroId)?.nome || '—')}</td><td class="d-met">${METODOS[c.metodo]}</td>${st.gestor ? '' : `<td class="d-rec"><span class="m-only">Recebido por </span>${esc(people.get(c.registadoPor)?.nome || '—')}</td>`}<td class="r d-amt">${money(c.valor)}</td></tr>`).join('')}</tbody>
-          <tfoot><tr><td colspan="${st.gestor ? 4 : 5}" class="d-tl">Total</td><td class="r d-tv">${money(total)}</td></tr></tfoot></table>`
+          ${x.list.length ? `<table class="table dtable"><thead><tr><th>Data</th><th>Recibo</th><th>Membro</th><th>Forma</th>${st.gestor ? '' : '<th>Recebido por</th>'}<th class="r">Valor</th></tr></thead>
+          <tbody>${x.list.map((c) => `<tr><td class="num d-date">${fmtDateShort(c.data)}<span class="m-only"> · ${metodoNome(c.metodo)}</span></td><td class="num muted d-ref">${esc(c.ref)}</td><td class="d-mem">${esc(people.get(c.membroId)?.nome || '—')}</td><td class="d-met">${METODOS[c.metodo]}</td>${st.gestor ? '' : `<td class="d-rec"><span class="m-only">Recebido por </span>${esc(people.get(c.registadoPor)?.nome || '—')}</td>`}<td class="r d-amt">${money(c.valor)}</td></tr>`).join('')}</tbody>
+          <tfoot><tr><td colspan="${st.gestor ? 4 : 5}" class="d-tl">Total recebido</td><td class="r d-tv">${money(x.total)}</td></tr></tfoot></table>`
           : '<p class="empty">Não há recebimentos neste período.</p>'}
         </section>
 
+        ${x.fin ? `${x.byCat.length ? `<section class="report__sec"><h3>Gasto por categoria</h3>
+          <table class="table"><tbody>${x.byCat.map((c) => `<tr><td>${c.l}</td><td class="r">${c.n}</td><td class="r">${money(c.v)}</td></tr>`).join('')}</tbody></table></section>` : ''}
+        <section class="report__sec"><h3>Despesas</h3>
+          ${x.exps.length ? `${expensesTable(x.exps)}<table class="table etable etable--total"><tfoot><tr><td>Total gasto</td><td class="r">${money(x.gasto)}</td></tr></tfoot></table>`
+          : '<p class="empty">Não há despesas neste período.</p>'}
+        </section>` : ''}
+
         <footer class="report__sign">
-          <div><span></span><p>${st.gestor ? esc(whoLabel) : 'Gestor responsável'}</p></div>
+          <div><span></span><p>${x.fin ? 'Tesouraria' : st.gestor ? esc(x.whoLabel) : 'Gestor responsável'}</p></div>
           <div><span></span><p>Administração</p></div>
         </footer>
       </article>`;
 
-    main.querySelectorAll('[name=kind]').forEach((x) => x.addEventListener('change', () => { st.kind = x.value; paint(); }));
+    main.querySelectorAll('[name=kind]').forEach((el) => el.addEventListener('change', () => { st.kind = el.value; paint(); }));
     main.querySelectorAll('[data-step]').forEach((b) => b.addEventListener('click', () => {
       const next = shiftPeriod(st.kind, st.anchor, Number(b.dataset.step));
       st.anchor = next > isoDate() ? isoDate() : next;
@@ -876,37 +1157,80 @@ async function relatorios(ctx) {
     }));
     main.querySelector('.period-nav__date').addEventListener('change', (e) => { if (e.target.value) { st.anchor = e.target.value; paint(); } });
     main.querySelector('[data-gestor]')?.addEventListener('change', (e) => { st.gestor = e.target.value; paint(); });
+    main.querySelectorAll('tr[data-exp]').forEach((tr) => tr.addEventListener('click', () => expenseDetail(ctx, x.exps.find((e) => e.id === tr.dataset.exp), people)));
   };
 
   // Relatório em PDF, com o mesmo conteúdo do ecrã
   document.querySelector('[data-pdf-report]').addEventListener('click', async (e) => {
     const b = e.currentTarget;
-    const { r, list } = current();
-    const total = sumv(list);
-    const whoLabel = st.gestor ? people.get(st.gestor)?.nome || '—' : 'Todos os gestores';
+    const x = current();
     const showGestor = !st.gestor;
-    const repData = {
-      title: KIND_TITLE[st.kind], period: r.label, obra: settings.obraNome,
-      who: whoLabel, range: `${fmtDate(r.from)}${r.from !== r.to ? ` a ${fmtDate(r.to)}` : ''}`,
-      issuedAt: fmtDateTime(new Date().toISOString()), issuedBy: user.nome,
-      total, count: list.length, members: new Set(list.map((c) => c.membroId)).size, avg: list.length ? total / list.length : 0,
-      byGestor: admin && !st.gestor ? gestoresList.map((g) => {
-        const l = list.filter((c) => c.registadoPor === g.id);
-        return { nome: g.nome, n: l.length, v: sumv(l), pct: pct(total ? (sumv(l) / total) * 100 : 0) };
-      }) : [],
-      byMethod: Object.entries(METODOS).map(([k, l]) => { const x = list.filter((c) => c.metodo === k); return { l, n: x.length, v: sumv(x) }; }).filter((x) => x.n),
-      showGestor,
-      rows: list.map((c) => [fmtDateShort(c.data), c.ref, people.get(c.membroId)?.nome || '—', c.metodo === 'banco' ? 'Transferência' : METODOS[c.metodo],
+    const rcols = showGestor
+      ? [{ label: 'Data', w: 0.095 }, { label: 'Recibo', w: 0.18, muted: true }, { label: 'Membro', w: 0.235 }, { label: 'Forma', w: 0.155 }, { label: 'Recebido por', w: 0.165 }, { label: 'Valor', w: 0.17, r: true, strong: true }]
+      : [{ label: 'Data', w: 0.11 }, { label: 'Recibo', w: 0.2, muted: true }, { label: 'Membro', w: 0.34 }, { label: 'Forma', w: 0.17 }, { label: 'Valor', w: 0.18, r: true, strong: true }];
+    const sections = [];
+    if (x.fin) {
+      sections.push({ title: 'Resumo de caixa', cols: [{ label: 'Movimento', w: 0.7 }, { label: 'Valor', w: 0.3, r: true, strong: true }],
+        rows: [['Saldo no início do período', money(x.anterior)], ['Entradas · contribuições recebidas', `+ ${money(x.total)}`], ['Saídas · despesas da obra', `− ${money(x.gasto)}`]],
+        total: ['Saldo no fim do período', money(x.final)] });
+    }
+    if (x.byGestor.length) {
+      sections.push({ title: 'Recebido por gestor',
+        cols: [{ label: 'Gestor', w: 0.46 }, { label: 'Recebimentos', w: 0.18, r: true }, { label: 'Parte', w: 0.14, r: true }, { label: 'Valor', w: 0.22, r: true, strong: true }],
+        rows: x.byGestor.map((g) => [g.nome, String(g.n), g.pct, money(g.v)]), total: ['Total recebido', String(x.list.length), '100,0%', money(x.total)] });
+    }
+    if (x.byMethod.length) {
+      sections.push({ title: 'Recebido por forma de pagamento',
+        cols: [{ label: 'Forma de pagamento', w: 0.6 }, { label: 'Recebimentos', w: 0.18, r: true }, { label: 'Valor', w: 0.22, r: true, strong: true }],
+        rows: x.byMethod.map((m) => [m.l, String(m.n), money(m.v)]) });
+    }
+    sections.push({ title: 'Recebimentos', cols: rcols, empty: 'Não há recebimentos neste período.',
+      rows: x.list.map((c) => [fmtDateShort(c.data), c.ref, people.get(c.membroId)?.nome || '—', metodoNome(c.metodo),
         ...(showGestor ? [people.get(c.registadoPor)?.nome || '—'] : []), money(c.valor)]),
-      signLeft: st.gestor ? whoLabel : 'Gestor responsável',
-      file: `Relatorio-${{ dia: 'diario', semana: 'semanal', mes: 'mensal' }[st.kind]}-${r.from}${st.gestor ? `-${(people.get(st.gestor)?.nome || '').split(' ')[0]}` : ''}.pdf`,
+      total: [...rcols.slice(0, -1).map((_, i) => (i === 0 ? 'Total recebido' : '')), money(x.total)] });
+    if (x.fin) {
+      if (x.byCat.length) {
+        sections.push({ title: 'Gasto por categoria',
+          cols: [{ label: 'Categoria', w: 0.6 }, { label: 'Despesas', w: 0.18, r: true }, { label: 'Valor', w: 0.22, r: true, strong: true }],
+          rows: x.byCat.map((c) => [c.l, String(c.n), money(c.v)]) });
+      }
+      sections.push({ title: 'Despesas', empty: 'Não há despesas neste período.',
+        cols: [{ label: 'Data', w: 0.095 }, { label: 'N.º', w: 0.165, muted: true }, { label: 'Descrição e nota', w: 0.41 }, { label: 'Categoria', w: 0.16, wrap: true }, { label: 'Valor', w: 0.17, r: true, strong: true }],
+        rows: x.exps.map((ex) => ({
+          cells: [fmtDateShort(ex.data), ex.ref, ex.descricao, CATEGORIAS[ex.categoria], money(ex.valor)],
+          sub: { col: 2, lines: [`Nota: ${ex.nota}`, `Pago a ${ex.beneficiario || '—'} · ${METODOS[ex.metodo]}${ex.referencia ? ` · ${ex.referencia}` : ''}`] },
+        })),
+        total: ['Total gasto', '', '', '', money(x.gasto)] });
+    }
+    const repData = {
+      title: x.title, period: x.r.label, obra: settings.obraNome,
+      info: [['Gestor', x.whoLabel], ['Período', x.range], ['Emitido em', fmtDateTime(new Date().toISOString())], ['Emitido por', user.nome]],
+      kpis: x.fin
+        ? [{ l: 'Saldo anterior', v: money(x.anterior) }, { l: 'Recebido', v: money(x.total) }, { l: 'Gasto', v: money(x.gasto) }, { l: 'Saldo final', v: money(x.final), main: true }]
+        : [{ l: 'Total recebido', v: money(x.total), main: true }, { l: 'Recebimentos', v: String(x.list.length) }, { l: 'Membros', v: String(x.members) }, { l: 'Valor médio', v: money(x.list.length ? x.total / x.list.length : 0) }],
+      sections,
+      signLeft: x.fin ? 'Tesouraria' : st.gestor ? x.whoLabel : 'Gestor responsável',
+      file: `Relatorio-${x.fin ? 'financeiro-' : ''}${KIND_FILE[st.kind]}-${x.r.from}${st.gestor ? `-${(people.get(st.gestor)?.nome || '').split(' ')[0]}` : ''}.pdf`,
     };
     try { await pdfButton(b, () => downloadReportPdf(repData)); } catch (ex) { toast(ex.message); }
   });
   warmPdf();
+
+  // CSV: com o relatório financeiro, entradas e saídas no mesmo ficheiro
   document.querySelector('[data-export]').addEventListener('click', () => {
-    const { r, list } = current();
-    exportCsv(list, people, `relatorio-${st.kind}-${r.from}`);
+    const x = current();
+    if (!x.fin) return exportCsv(x.list, people, `relatorio-${st.kind}-${x.r.from}`);
+    const rows = [['Tipo', 'Data', 'N.º', 'Descrição', 'Nota', 'Categoria / forma', 'Pessoa', 'Entrada (MT)', 'Saída (MT)']];
+    const n = (v) => v.toFixed(2).replace('.', ',');
+    const moves = [
+      ...x.list.map((c) => ({ d: c.data, row: ['Entrada', c.data, c.ref, 'Contribuição', c.nota || '', METODOS[c.metodo], people.get(c.membroId)?.nome || '', n(c.valor), ''] })),
+      ...x.exps.map((ex) => ({ d: ex.data, row: ['Saída', ex.data, ex.ref, ex.descricao, ex.nota, CATEGORIAS[ex.categoria], ex.beneficiario, '', n(ex.valor)] })),
+    ].sort((a, b) => a.d.localeCompare(b.d));
+    rows.push(['Saldo anterior', '', '', '', '', '', '', n(x.anterior), '']);
+    moves.forEach((m) => rows.push(m.row));
+    rows.push(['Saldo final', '', '', '', '', '', '', n(x.final), '']);
+    downloadCsv(rows, `relatorio-financeiro-${KIND_FILE[st.kind]}-${x.r.from}`);
+    toast('Relatório exportado');
   });
   paint();
 }
