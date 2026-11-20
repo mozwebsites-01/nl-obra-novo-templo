@@ -304,3 +304,10 @@ dialog.sheet::backdrop { background: rgba(20, 21, 43, 0.32); }
 .btn-spin { width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin 700ms linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .btn-spin { animation-duration: 1600ms; } }
+
+/* Campo de telemóvel (+258) nos formulários claros: o estilo escuro só existe na entrada */
+.phone { display: flex; align-items: stretch; height: 44px; border: 1px solid var(--line-strong); border-radius: 8px; background: #fff; transition: border-color var(--t), box-shadow var(--t); }
+.phone:focus-within { border-color: var(--navy); box-shadow: 0 0 0 3px var(--tint); }
+.phone__prefix { display: flex; align-items: center; padding: 0 12px; color: var(--ink-2); font-weight: 500; font-variant-numeric: tabular-nums; border-right: 1px solid var(--line); }
+.phone input { flex: 1; min-width: 0; border: 0; outline: none; background: none; padding: 0 12px; color: var(--ink); font-size: 15px; font-weight: 500; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.phone input::placeholder { color: #A3A6B5; font-weight: 400; }
