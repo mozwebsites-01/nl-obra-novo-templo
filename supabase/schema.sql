@@ -17,8 +17,11 @@ create table if not exists public.settings (
   obra_nome text not null default 'Obra do Novo Templo',
   meta numeric(14,2) not null default 5000000,
   inicio date not null default date_trunc('month', now())::date,
-  prazo date not null default (date_trunc('year', now()) + interval '2 years' - interval '1 day')::date
+  prazo date not null default (date_trunc('year', now()) + interval '2 years' - interval '1 day')::date,
+  -- Número oficial do WhatsApp da tesouraria (envia os comprovativos)
+  whatsapp text not null default '879470600' check (whatsapp ~ '^8[2-7][0-9]{7}$')
 );
+alter table public.settings add column if not exists whatsapp text not null default '879470600';
 insert into public.settings (id) values (1) on conflict (id) do nothing;
 
 -- Pessoas: administração, gestores e membros --------------------------------

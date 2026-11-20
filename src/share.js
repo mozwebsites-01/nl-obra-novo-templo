@@ -11,6 +11,7 @@ export function receiptData(c, { member, reviewer, settings }) {
     n: member?.nome || '', t: member?.telefone || '',
     k: c.nota || '',
     e: c.revistoEm || c.declaradoEm, o: settings?.obraNome || 'Obra do Novo Templo',
+    w: settings?.whatsapp || '879470600',
   };
 }
 
@@ -20,7 +21,7 @@ export function fromData(x) {
     c: { ref: x.r, valor: x.v, metodo: x.m, data: x.d, pagador: x.p, referencia: x.x, nota: x.k, estado: 'confirmado', registadoPor: 'ligacao', revistoEm: x.e },
     member: { nome: x.n, telefone: x.t || x.tm || '' },
     reviewer: { nome: x.g, cargo: x.gc },
-    settings: { obraNome: x.o },
+    settings: { obraNome: x.o, whatsapp: x.w || '879470600' },
   };
 }
 
@@ -61,9 +62,14 @@ export function whatsappText(data) {
     'Comprovativo em PDF:',
     receiptUrl(data),
     '',
+    `Dúvidas? Responda a esta mensagem ou contacte a tesouraria: +258 ${phoneFmt(data.w || '879470600')}`,
+    '',
     'Que Deus abençoe a sua generosidade.',
   ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
 }
+
+// Ligação para falar com a tesouraria (página do membro)
+export const treasuryLink = (data) => `https://wa.me/258${data.w || '879470600'}`;
 
 export const whatsappLink = (data) => `https://wa.me/258${data.t}?text=${encodeURIComponent(whatsappText(data))}`;
 
@@ -277,7 +283,7 @@ export async function receiptPdf(data) {
   font('regular', 8, MUTED);
   doc.text('Que Deus abençoe a sua generosidade.', W / 2, y + 5, { align: 'center' });
   font('regular', 6.5, MUTED);
-  doc.text(`Processado por computador · Nataniel Litsure Ministries · ${fmtDateTime(new Date().toISOString())}`, W / 2, 198, { align: 'center' });
+  doc.text(`Tesouraria · WhatsApp +258 ${phoneFmt(data.w || '879470600')} · Processado por computador em ${fmtDateTime(new Date().toISOString())}`, W / 2, 198, { align: 'center' });
   font('semibold', 6.5, NAVY);
   const link = 'Ver este recibo online';
   doc.textWithLink(link, (W - doc.getTextWidth(link)) / 2, 202.5, { url: receiptUrl(data) });

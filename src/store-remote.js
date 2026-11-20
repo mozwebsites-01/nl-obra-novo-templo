@@ -23,7 +23,7 @@ const sb = window.supabase.createClient(CONFIG.url, CONFIG.anonKey, {
   auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true, storageKey: 'nl.auth' },
 });
 
-const DEFAULT_SETTINGS = { obraNome: 'Obra do Novo Templo', meta: 5000000, inicio: isoDate(), prazo: isoDate() };
+const DEFAULT_SETTINGS = { obraNome: 'Obra do Novo Templo', meta: 5000000, inicio: isoDate(), prazo: isoDate(), whatsapp: '879470600' };
 let db = { settings: { ...DEFAULT_SETTINGS }, members: [], contributions: [] };
 let me = null;
 let syncedAt = 0;
@@ -49,7 +49,7 @@ const toContribution = (r) => ({
   declaradoEm: r.registado_em, revistoEm: r.registado_em, revistoPor: r.registado_por, registadoPor: r.registado_por,
   notificadoEm: r.notificado_em, notificadoPor: r.notificado_por, notificadoCanal: r.notificado_canal,
 });
-const toSettings = (r) => ({ obraNome: r.obra_nome, meta: Number(r.meta), inicio: r.inicio, prazo: r.prazo });
+const toSettings = (r) => ({ obraNome: r.obra_nome, meta: Number(r.meta), inicio: r.inicio, prazo: r.prazo, whatsapp: r.whatsapp || '879470600' });
 
 const byRecent = (a, b) => b.data.localeCompare(a.data) || String(b.declaradoEm).localeCompare(String(a.declaradoEm));
 const sum = (list) => list.reduce((s, c) => s + c.valor, 0);
@@ -193,6 +193,7 @@ export async function updateSettings(patch) {
   if ('meta' in patch) row.meta = patch.meta;
   if ('inicio' in patch) row.inicio = patch.inicio;
   if ('prazo' in patch) row.prazo = patch.prazo;
+  if ('whatsapp' in patch) row.whatsapp = patch.whatsapp;
   const { data, error } = await sb.from('settings').update(row).eq('id', 1).select().single();
   fail(error, 'Não foi possível guardar as definições.');
   db.settings = toSettings(data);

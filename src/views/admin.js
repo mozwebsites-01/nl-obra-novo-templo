@@ -155,6 +155,7 @@ function deliverBox(c, data) {
       <div><p class="deliver__title">Enviar comprovativo a ${esc(firstName(data.n))}</p>
       <p class="muted small">Mensagem de confirmação e recibo em PDF para +258 ${esc(phoneFmt(data.t))}</p></div>
     </div>
+    <p class="deliver__from">${icon('smartphone', 14)} Enviar a partir do WhatsApp oficial da tesouraria: <strong class="num">+258 ${esc(phoneFmt(data.w || '879470600'))}</strong></p>
     ${sent}
     <div class="deliver__actions">
       <a class="btn btn-primary" href="${esc(whatsappLink(data))}" target="_blank" rel="noopener" data-wa>${icon('send', 17)} ${c.notificadoEm ? 'Reenviar' : 'Enviar'} por WhatsApp</a>
@@ -881,6 +882,9 @@ async function obra({ main, head }) {
             <div class="field"><label for="inicio">Início da campanha</label><input class="input" type="date" id="inicio" name="inicio" value="${settings.inicio}"></div>
             <div class="field"><label for="prazo">Prazo</label><input class="input" type="date" id="prazo" name="prazo" value="${settings.prazo}"></div>
           </div>
+          <div class="field"><label for="wa">WhatsApp da tesouraria</label>
+            <div class="phone phone--light"><span class="phone__prefix">+258</span><input id="wa" name="whatsapp" inputmode="numeric" value="${esc(phoneFmt(settings.whatsapp || '879470600'))}"></div>
+            <p class="hint">Número oficial que envia os comprovativos aos membros e que aparece nos recibos.</p></div>
           <p class="error-text" data-error hidden></p>
           <div><button type="submit" class="btn btn-primary">Guardar alterações</button></div>
         </form>
@@ -909,10 +913,11 @@ async function obra({ main, head }) {
     e.preventDefault();
     const meta = Number(form.meta.value.replace(/\D/g, ''));
     const err = form.querySelector('[data-error]');
-    const msg = !form.obraNome.value.trim() ? 'Indique o nome da campanha.' : !(meta > 0) ? 'Indique uma meta maior que zero.' : form.prazo.value <= form.inicio.value ? 'O prazo tem de ser posterior ao início.' : '';
+    const whatsapp = form.whatsapp.value.replace(/\D/g, '');
+    const msg = !form.obraNome.value.trim() ? 'Indique o nome da campanha.' : !(meta > 0) ? 'Indique uma meta maior que zero.' : form.prazo.value <= form.inicio.value ? 'O prazo tem de ser posterior ao início.' : !isValidPhone(whatsapp) ? 'Indique os 9 dígitos do WhatsApp da tesouraria, começando por 8.' : '';
     err.textContent = msg; err.hidden = !msg;
     if (msg) return;
-    await store.updateSettings({ obraNome: form.obraNome.value.trim(), meta, inicio: form.inicio.value, prazo: form.prazo.value });
+    await store.updateSettings({ obraNome: form.obraNome.value.trim(), meta, inicio: form.inicio.value, prazo: form.prazo.value, whatsapp });
     toast('Alterações guardadas');
   });
   paintPreview();

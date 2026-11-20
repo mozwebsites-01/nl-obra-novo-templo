@@ -26,6 +26,7 @@ function emptyDb() {
       meta: 5000000,
       inicio: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
       prazo: `${now.getFullYear() + 1}-12-31`,
+      whatsapp: '879470600',
     },
     members: [],
     contributions: [],
@@ -39,7 +40,12 @@ let db = load();
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const data = JSON.parse(raw);
+      // Número oficial do WhatsApp da tesouraria (dados guardados antes de existir)
+      if (!data.settings.whatsapp) { data.settings.whatsapp = '879470600'; save(data); }
+      return data;
+    }
   } catch { /* dados corrompidos: recomeça */ }
   const fresh = emptyDb();
   save(fresh);
