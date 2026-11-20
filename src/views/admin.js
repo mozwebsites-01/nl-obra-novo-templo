@@ -63,6 +63,12 @@ function totals(list, today = isoDate()) {
   };
 }
 
+// Listas: 10 de cada vez, com "Mostrar mais" (mesmo comportamento em todas as páginas)
+const PAGE = 10;
+function pageFoot(shown, total, summary = '') {
+  return `<div class="table-foot"><span>A mostrar ${shown} de ${total}${summary}</span>${total > shown ? `<button type="button" class="btn btn-secondary btn-sm" data-more>Mostrar mais ${Math.min(PAGE, total - shown)}</button>` : ''}</div>`;
+}
+
 // Caixa da obra ------------------------------------------------------------
 // Saldo disponível = tudo o que foi recebido − todas as despesas (as anuladas não contam)
 const validExp = (l) => l.filter((e) => !e.anulada);
@@ -499,7 +505,7 @@ async function inicio(ctx) {
 
       <section class="card dash__wide table-card g-home__wide">
         <div class="card-head card-head--table"><p class="eyebrow">Os seus últimos recebimentos</p><a href="#/a/contribuicoes" class="link small">Ver todos</a></div>
-        ${mine.length ? receiptsTable(mine.slice(0, 8), people) : `<div class="empty">Quando registar um valor recebido, o recibo aparece aqui.</div>`}
+        ${mine.length ? receiptsTable(mine.slice(0, 6), people) : `<div class="empty">Quando registar um valor recebido, o recibo aparece aqui.</div>`}
       </section>
     </div>`;
   main.querySelector('[data-record-here]').addEventListener('click', () => recordDialog(ctx));
@@ -520,7 +526,7 @@ function sentBadge(c) {
 function receiptsTable(list, people, { showReceiver = false } = {}) {
   if (!list.length) return '<p class="empty">Ainda não há recebimentos. Os valores registados pelos gestores aparecem aqui.</p>';
   return `<table class="table rtable">
-    <thead><tr><th>Recibo</th><th>Membro</th><th>Data</th><th>Forma de pagamento</th>${showReceiver ? '<th>Recebido por</th>' : ''}<th class="r">Valor</th></tr></thead>
+    <thead><tr><th class="c-ref">Recibo</th><th class="c-mem">Membro</th><th class="c-date">Data</th><th class="c-met">Forma de pagamento</th>${showReceiver ? '<th class="c-rec">Recebido por</th>' : ''}<th class="r c-amt">Valor</th></tr></thead>
     <tbody>${list.map((c) => {
       const m = people.get(c.membroId);
       const g = people.get(c.registadoPor);
@@ -627,7 +633,7 @@ async function contribuicoes(ctx) {
   const f = { q: sessionStorage.getItem('nl.q') || '', gestor: admin ? sessionStorage.getItem('nl.gestor') || '' : '', metodo: '', mes: '' };
   sessionStorage.removeItem('nl.q');
   sessionStorage.removeItem('nl.gestor');
-  let limit = 40;
+  let limit = PAGE;
 
   head(admin ? 'Todos os gestores' : 'Registados por si', 'Recebimentos',
     `<button type="button" class="btn btn-secondary" data-export>${icon('download', 18)} Exportar CSV</button>${admin ? '' : `<button type="button" class="btn btn-primary" data-new>${icon('plus-circle', 18)} Registar contribuição</button>`}`);
@@ -660,13 +666,13 @@ async function contribuicoes(ctx) {
     const list = filtered();
     table.innerHTML = list.length
       ? `${receiptsTable(list.slice(0, limit), people, { showReceiver: admin })}
-        <div class="table-foot"><span>A mostrar ${Math.min(limit, list.length)} de ${list.length} · total desta seleção: <strong class="num" style="color:var(--ink)">${money(sumv(list))}</strong></span>${list.length > limit ? '<button type="button" class="btn btn-secondary btn-sm" data-more>Mostrar mais</button>' : ''}</div>`
+        ${pageFoot(Math.min(limit, list.length), list.length, ` · total recebido: <strong class="num" style="color:var(--ink)">${money(sumv(list))}</strong>`)}`
       : `<p class="empty">${all.length ? 'Nenhum recebimento corresponde aos filtros.' : 'Ainda não há recebimentos registados.'}</p>`;
-    table.querySelector('[data-more]')?.addEventListener('click', () => { limit += 40; paint(); });
+    table.querySelector('[data-more]')?.addEventListener('click', () => { limit += PAGE; paint(); });
     bindReceiptRows(table, list, people);
   };
 
-  main.querySelectorAll('[data-f]').forEach((el) => el.addEventListener('input', () => { f[el.dataset.f] = el.value; limit = 40; paint(); }));
+  main.querySelectorAll('[data-f]').forEach((el) => el.addEventListener('input', () => { f[el.dataset.f] = el.value; limit = PAGE; paint(); }));
   document.querySelector('[data-export]').addEventListener('click', () => exportCsv(filtered(), people, `recebimentos-${isoDate()}`));
   document.querySelector('[data-new]')?.addEventListener('click', () => recordDialog(ctx));
   paint();
@@ -714,7 +720,6 @@ async function despesas(ctx) {
   const [received, expenses, people] = await Promise.all([visibleReceipts(user), store.listExpenses(), peopleMap()]);
   const months = [...new Set(expenses.map((e) => monthKey(e.data)))];
   const f = { q: '', cat: '', mes: '' };
-  const PAGE = 10;
   let limit = PAGE;
 
   head('Saídas da obra', 'Despesas',
@@ -740,7 +745,7 @@ async function despesas(ctx) {
     const voided = list.filter((e) => e.anulada).length;
     table.innerHTML = list.length
       ? `${expensesTable(list.slice(0, limit), { compact: true })}
-        <div class="table-foot"><span>A mostrar ${Math.min(limit, list.length)} de ${list.length}${voided ? ` (${voided} anulada${voided > 1 ? 's' : ''}, fora do total)` : ''} · total gasto nesta seleção: <strong class="num" style="color:var(--ink)">${money(sumv(validExp(list)))}</strong></span>${list.length > limit ? `<button type="button" class="btn btn-secondary btn-sm" data-more>Mostrar mais ${Math.min(PAGE, list.length - limit)}</button>` : ''}</div>`
+        ${pageFoot(Math.min(limit, list.length), list.length, `${voided ? ` (${voided} anulada${voided > 1 ? 's' : ''}, fora do total)` : ''} · total gasto: <strong class="num" style="color:var(--ink)">${money(sumv(validExp(list)))}</strong>`)}`
       : `<p class="empty">${expenses.length ? 'Nenhuma despesa corresponde aos filtros.' : 'Ainda não há despesas registadas. Use "Registar despesa" sempre que sair dinheiro da obra.'}</p>`;
     table.querySelector('[data-more]')?.addEventListener('click', () => { limit += PAGE; paint(); });
     table.querySelectorAll('tr[data-exp]').forEach((tr) => {
@@ -915,6 +920,7 @@ async function membros(ctx) {
   let [list, receipts, people] = await Promise.all([store.listMembers(), visibleReceipts(user), peopleMap()]);
   let tab = ctx.param === 'suspensos' && admin ? 'suspensos' : 'ativos';
   let q = '';
+  let limit = PAGE;
   head('Comunidade', 'Membros', `<button type="button" class="btn btn-${admin ? 'primary' : 'secondary'}" data-add>${icon('user-plus', 18)} Adicionar membro</button>`);
 
   // Totais por membro, dentro do que este utilizador pode ver
@@ -930,15 +936,15 @@ async function membros(ctx) {
     let table;
     const rows = list.filter((m) => (tab === 'suspensos' ? m.estado === 'suspenso' : m.estado !== 'suspenso')).filter(match);
     table = rows.length
-      ? `<table class="table mtable"><thead><tr><th>Membro</th><th>Telemóvel</th><th class="r">Contribuições</th><th class="r">${admin ? 'Total' : 'Recebido por si'}</th><th>Última</th><th class="r"></th></tr></thead>
-        <tbody>${rows.map((m) => {
+      ? `<table class="table mtable"><thead><tr><th class="m-name">Membro</th><th class="m-tel">Telemóvel</th><th class="r m-n">Contribuições</th><th class="r m-tot">${admin ? 'Total' : 'Recebido por si'}</th><th class="m-last">Última</th><th class="r m-act"></th></tr></thead>
+        <tbody>${rows.slice(0, limit).map((m) => {
           const s = statsFor(m.id);
           const susp = m.estado === 'suspenso';
           const action = admin
             ? `<button type="button" class="btn btn-ghost btn-sm" data-susp="${m.id}">${susp ? 'Reativar' : 'Suspender'}</button>`
             : `<button type="button" class="btn btn-secondary btn-sm" data-rec="${m.id}">${icon('plus-circle', 15)} Registar</button>`;
           return `<tr class="click${susp ? ' is-muted' : ''}" data-id="${m.id}" tabindex="0"><td class="m-name"><span class="cell-name">${esc(m.nome)}</span></td><td class="num m-tel">+258 ${phoneFmt(m.telefone)}</td><td class="r m-n">${s.n}<span class="m-only"> ${s.n === 1 ? 'contribuição' : 'contribuições'}</span></td><td class="r m-tot">${money(s.total)}</td><td class="m-last ${s.ultima ? '' : 'muted'}"><span class="m-only">Última: </span>${s.ultima ? fmtDate(s.ultima) : '—'}</td><td class="r m-act">${action}</td></tr>`;
-        }).join('')}</tbody></table>`
+        }).join('')}</tbody></table>${pageFoot(Math.min(limit, rows.length), rows.length)}`
       : `<p class="empty">${tab === 'suspensos' ? 'Nenhum membro suspenso.' : q ? 'Nenhum membro corresponde à pesquisa.' : 'Ainda não há membros. Adicione o primeiro.'}</p>`;
 
     main.innerHTML = `
@@ -946,9 +952,10 @@ async function membros(ctx) {
       <div class="toolbar"><label class="search">${icon('search', 18)}<input class="input" type="search" placeholder="Procurar por nome ou telemóvel" aria-label="Procurar membro" data-q value="${esc(q)}"></label><span class="toolbar__count muted small">${list.length} membros</span></div>
       <div class="card table-card">${table}</div>`;
 
-    main.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; paint(); }));
+    main.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; limit = PAGE; paint(); }));
+    main.querySelector('[data-more]')?.addEventListener('click', () => { limit += PAGE; paint(); });
     const qi = main.querySelector('[data-q]');
-    qi.addEventListener('input', () => { q = qi.value; paint(); const n = main.querySelector('[data-q]'); n.focus(); n.setSelectionRange(q.length, q.length); });
+    qi.addEventListener('input', () => { q = qi.value; limit = PAGE; paint(); const n = main.querySelector('[data-q]'); n.focus(); n.setSelectionRange(q.length, q.length); });
 
     main.querySelectorAll('[data-susp]').forEach((b) => b.addEventListener('click', async (e) => {
       e.stopPropagation();

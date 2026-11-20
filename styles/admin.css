@@ -955,3 +955,51 @@ dialog.sheet[open] { display: flex; }
   .etable--compact .e-ref .tag-void { margin: 0; }
 }
 @media (max-width: 1100px) { .etable--compact td.e-date { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; min-width: 0; } }
+
+/* =====================================================================
+   Listas em todas as páginas: linhas de altura igual.
+   Texto comprido corta com "…" (o detalhe completo abre ao tocar na linha).
+   ===================================================================== */
+.rtable .cell-name, .rtable .cell-sub, .mtable .cell-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Computador: colunas em proporção fixa — a tabela nunca passa a largura do cartão */
+@media (min-width: 1101px) {
+  .table-card .rtable { table-layout: fixed; width: 100%; }
+  .rtable th.c-ref { width: 172px; } .rtable th.c-date { width: 124px; } .rtable th.c-amt { width: 148px; }
+  .rtable th.c-mem { width: auto; } .rtable th.c-met { width: auto; } .rtable th.c-rec { width: 16%; }
+  .table-card .rtable td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: none; }
+}
+.table-card .mtable td.m-name { max-width: 300px; }
+.table-card .mtable td.m-name .cell-name { max-width: 100%; }
+@media (max-width: 1100px) {
+  .rtable .c-mem, .mtable .m-name { min-width: 0 !important; overflow: hidden; }
+  .rtable td.c-rec, .rtable td.c-date, .mtable td.m-last, .mtable td.m-tel { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; min-width: 0 !important; }
+  .table-card:has(.mtable) .table-foot, .table-card:has(.rtable) .table-foot { border-top: 1px solid var(--line); }
+}
+@media (max-width: 760px) {
+  .table-foot { flex-wrap: wrap; row-gap: 10px; }
+  .table-foot .btn { width: 100%; }
+}
+@media (min-width: 1101px) {
+  .table-card .mtable { table-layout: fixed; width: 100%; }
+  .mtable th.m-name { width: auto; } .mtable th.m-tel { width: 172px; } .mtable th.m-n { width: 128px; }
+  .mtable th.m-tot { width: 150px; } .mtable th.m-last { width: 132px; } .mtable th.m-act { width: 144px; }
+  .table-card .mtable td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: none; }
+  .table-card .mtable td.m-name { max-width: none; }
+}
+/* Portátil pequeno: a coluna "Última" sai para o nome do membro ter espaço (continua no detalhe) */
+@media (min-width: 1101px) and (max-width: 1300px) { .mtable .m-last { display: none; } }
+/* Telemóvel: indicadores em linhas de extrato (rótulo à esquerda, valor à direita) — cabe qualquer valor */
+@media (max-width: 760px) {
+  .report__kpis, .report__kpis--fin { grid-template-columns: minmax(0, 1fr); }
+  .report__kpis > div, .report__kpis > div + div, .report__kpis--fin > div:nth-child(3) {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px;
+    padding: 12px 16px; border-left: 0; border-top: 1px solid var(--line);
+  }
+  .report__kpis > div:first-child { border-top: 0; }
+  .report__kpis dt { grid-column: 1; grid-row: 1; }
+  .report__kpis dd { grid-column: 2; grid-row: 1 / span 2; margin: 0; font-size: 16px; white-space: nowrap; text-align: right; }
+  .report__kpis .report__kpi-sub { grid-column: 1; grid-row: 2; margin: 0; }
+  .report__kpis .is-main dd { font-size: 18px; }
+}
+/* Telemóvel: espaço no fim de cada página para a barra inferior nunca tapar conteúdo */
+@media (max-width: 760px) { .a-content { padding-bottom: calc(96px + env(safe-area-inset-bottom)); } }
