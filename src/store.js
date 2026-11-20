@@ -34,6 +34,7 @@ export const createAdmin = call('createAdmin');
 export const createSuper = call('createSuper');
 export const devSetupAvailable = call('devSetupAvailable');
 export const changePin = call('changePin');
+export const resetPin = call('resetPin');
 export const createGestor = call('createGestor');
 export const createMember = call('createMember');
 export const declareContribution = call('declareContribution');

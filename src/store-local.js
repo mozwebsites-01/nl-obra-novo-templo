@@ -522,3 +522,13 @@ export async function changePin(current, next) {
   save();
   return { ok: true };
 }
+
+export async function resetPin(personId) {
+  const m = db.members.find((x) => x.id === personId && x.role === 'gestor');
+  if (!m) throw new Error('Não é possível redefinir o PIN desta conta.');
+  let pin;
+  do { pin = String(Math.floor(Math.random() * 10000)).padStart(4, '0'); } while (/^(\d)\1{3}$/.test(pin) || '0123456789'.includes(pin) || '9876543210'.includes(pin));
+  m.pin = pin;
+  save();
+  return { pin };
+}

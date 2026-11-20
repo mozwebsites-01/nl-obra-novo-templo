@@ -359,3 +359,146 @@ end $$;
 revoke all on function public.setup_super(text) from public;
 grant execute on function public.dev_setup_available(text) to anon, authenticated;
 grant execute on function public.setup_super(text) to authenticated;
+
+-- =====================================================================
+-- SEGURANÇA MÁXIMA (só acrescenta; não altera nem apaga dados)
+--  1. Esquema "secure", invisível à API: chave secreta, tentativas de entrada,
+--     histórico de alterações e cópias diárias.
+--  2. Histórico (auditoria) de TODAS as alterações; não pode ser alterado nem apagado.
+--  3. Nada se apaga: pessoas, recebimentos, despesas e definições.
+--  4. Dados da conta (telemóvel, papel) não se alteram pelo navegador.
+--  5. Cópia automática de todos os dados todos os dias (guardadas 120 dias).
+--  6. Funções só para o servidor (entrada segura com bloqueio por tentativas).
+-- =====================================================================
+create schema if not exists secure;
+revoke all on schema secure from public, anon, authenticated;
+
+-- Chave secreta gerada no próprio servidor (ninguém a vê; só a função de entrada a usa)
+create table if not exists secure.pepper (
+  id int primary key default 1 check (id = 1),
+  value text not null default encode(extensions.gen_random_bytes(32), 'hex')
+);
+insert into secure.pepper (id) values (1) on conflict (id) do nothing;
+
+-- Tentativas de entrada por número: bloqueio crescente (15 min, 30 min, 1 h … até 24 h)
+create table if not exists secure.login_attempts (
+  telefone text primary key,
+  fails int not null default 0,
+  locked_until timestamptz,
+  last_at timestamptz not null default now()
+);
+create table if not exists secure.auth_log (
+  id bigserial primary key, at timestamptz not null default now(),
+  telefone text, ok boolean not null, acao text, ip text
+);
+
+-- Histórico de alterações (quem, quando, o quê: antes e depois)
+create table if not exists secure.audit_log (
+  id bigserial primary key,
+  at timestamptz not null default now(),
+  actor uuid, actor_role text,
+  table_name text not null, op text not null, row_id text,
+  old_row jsonb, new_row jsonb
+);
+create or replace function secure.audit() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into secure.audit_log (actor, actor_role, table_name, op, row_id, old_row, new_row)
+  values (auth.uid(), coalesce(auth.role(), current_user), tg_table_name, tg_op,
+          case when tg_op = 'DELETE' then to_jsonb(old) ->> 'id' else to_jsonb(new) ->> 'id' end,
+          case when tg_op in ('UPDATE', 'DELETE') then to_jsonb(old) end,
+          case when tg_op in ('INSERT', 'UPDATE') then to_jsonb(new) end);
+  return coalesce(new, old);
+end $$;
+create or replace function secure.readonly() returns trigger
+language plpgsql as $$
+begin
+  raise exception 'O histórico de segurança não pode ser alterado nem apagado.';
+end $$;
+drop trigger if exists audit_log_readonly on secure.audit_log;
+create trigger audit_log_readonly before update or delete on secure.audit_log
+  for each row execute function secure.readonly();
+
+do $$
+declare t text;
+begin
+  foreach t in array array['people', 'contributions', 'expenses', 'settings'] loop
+    execute format('drop trigger if exists %I on public.%I', t || '_audit', t);
+    execute format('create trigger %I after insert or update or delete on public.%I for each row execute function secure.audit()', t || '_audit', t);
+  end loop;
+  -- Nada se apaga (as despesas já estavam protegidas)
+  foreach t in array array['people', 'contributions', 'settings'] loop
+    execute format('drop trigger if exists %I on public.%I', t || '_no_delete', t);
+    execute format('create trigger %I before delete on public.%I for each row execute function public.no_delete()', t || '_no_delete', t);
+  end loop;
+end $$;
+
+-- Dados da conta que o navegador nunca pode mudar (só o servidor)
+create or replace function public.lock_person() returns trigger
+language plpgsql as $$
+begin
+  if coalesce(auth.role(), '') = 'service_role' or auth.uid() is null then return new; end if;
+  if (new.id, new.user_id, new.telefone, new.role, new.criado_em, new.criado_por)
+     is distinct from (old.id, old.user_id, old.telefone, old.role, old.criado_em, old.criado_por)
+  then raise exception 'Estes dados da conta não podem ser alterados.'; end if;
+  return new;
+end $$;
+drop trigger if exists people_lock on public.people;
+create trigger people_lock before update on public.people
+  for each row execute function public.lock_person();
+
+-- Cópia diária de todos os dados
+create table if not exists secure.snapshots (
+  id bigserial primary key,
+  taken_at timestamptz not null default now(),
+  data jsonb not null
+);
+create or replace function secure.take_snapshot() returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into secure.snapshots (data) select jsonb_build_object(
+    'settings', (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.settings x),
+    'people', (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.people x),
+    'contributions', (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.contributions x),
+    'expenses', (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.expenses x));
+  delete from secure.snapshots where taken_at < now() - interval '120 days';
+end $$;
+create extension if not exists pg_cron;
+select cron.schedule('nl-copia-diaria', '0 0 * * *', 'select secure.take_snapshot()');
+
+-- Funções usadas só pela função de entrada no servidor (service_role) -------
+create or replace function public.sec_pepper() returns text
+language sql stable security definer set search_path = secure as $$ select value from secure.pepper where id = 1 $$;
+
+create or replace function public.sec_lock_status(p_telefone text) returns int
+language sql stable security definer set search_path = secure as $$
+  select coalesce(greatest(0, ceil(extract(epoch from (locked_until - now()))))::int, 0)
+  from (select max(locked_until) as locked_until from secure.login_attempts where telefone = p_telefone) x
+$$;
+
+create or replace function public.sec_register(p_telefone text, p_ok boolean, p_acao text default 'entrada', p_ip text default null) returns json
+language plpgsql security definer set search_path = secure as $$
+declare r secure.login_attempts; mins int;
+begin
+  insert into secure.auth_log (telefone, ok, acao, ip) values (p_telefone, p_ok, p_acao, p_ip);
+  if p_ok then
+    delete from secure.login_attempts where telefone = p_telefone;
+    return json_build_object('ok', true);
+  end if;
+  insert into secure.login_attempts (telefone, fails, last_at) values (p_telefone, 1, now())
+    on conflict (telefone) do update set fails = secure.login_attempts.fails + 1, last_at = now()
+    returning * into r;
+  if r.fails % 5 = 0 then
+    mins := least(15 * power(2, r.fails / 5 - 1)::int, 1440);
+    update secure.login_attempts set locked_until = now() + make_interval(mins => mins) where telefone = p_telefone;
+    return json_build_object('locked', mins * 60);
+  end if;
+  return json_build_object('left', 5 - r.fails % 5);
+end $$;
+
+revoke all on function public.sec_pepper() from public, anon, authenticated;
+revoke all on function public.sec_lock_status(text) from public, anon, authenticated;
+revoke all on function public.sec_register(text, boolean, text, text) from public, anon, authenticated;
+grant execute on function public.sec_pepper() to service_role;
+grant execute on function public.sec_lock_status(text) to service_role;
+grant execute on function public.sec_register(text, boolean, text, text) to service_role;

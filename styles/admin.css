@@ -1103,3 +1103,5 @@ button.a-me:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px;
   .a-nav:not(:has(.a-nav__fab)) a { flex: 0 0 40px; }
   .a-nav:not(:has(.a-nav__fab)) a.is-active { flex: 0 0 auto; max-width: none; padding: 0 12px; }
 }
+.backup { display: grid; gap: 10px; margin-top: 20px; }
+.backup .btn { justify-self: start; }

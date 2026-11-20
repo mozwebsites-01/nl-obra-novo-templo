@@ -29,4 +29,20 @@ DirectoryIndex index.html
   </FilesMatch>
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # Segurança máxima no navegador:
+  #  - só o código deste site corre; só o servidor da obra (Supabase) pode ser contactado
+  #  - o site não pode ser metido dentro de outra página (proteção contra cliques enganadores)
+  #  - HTTPS obrigatório durante 2 anos; câmara, microfone e localização desligados
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://obqoavamffnobtpggwfb.supabase.co wss://obqoavamffnobtpggwfb.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+  Header always set X-Frame-Options "DENY"
+  Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
 </IfModule>
+
+# Nunca servir ficheiros internos (código do servidor, scripts, configuração do git)
+<IfModule mod_rewrite.c>
+  RewriteRule (^|/)\.(?!well-known) - [F,L]
+  RewriteRule ^(supabase|scripts)(/|$) - [F,L]
+</IfModule>
+Options -Indexes

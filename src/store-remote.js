@@ -15,8 +15,6 @@ const ATTEMPTS = 'nl.attempts.v1';
 
 // A conta de acesso usa um endereço interno derivado do telemóvel; o PIN é completado
 // para cumprir o tamanho mínimo da palavra-passe do Supabase.
-const emailFor = (tel) => `${tel}@${CONFIG.authDomain}`;
-const passFor = (pin) => `NL-${pin}-obra`;
 
 // Sessão do Supabase guardada no separador (fechar o separador termina a sessão)
 const sb = window.supabase.createClient(CONFIG.url, CONFIG.anonKey, {
@@ -60,6 +58,30 @@ const toSettings = (r) => ({ obraNome: r.obra_nome, meta: Number(r.meta), inicio
 
 const byRecent = (a, b) => b.data.localeCompare(a.data) || String(b.declaradoEm).localeCompare(String(a.declaradoEm));
 const sum = (list) => list.reduce((s, c) => s + c.valor, 0);
+
+// Função segura de autenticação no servidor (supabase/functions/auth): o PIN só é validado lá,
+// com bloqueio por tentativas e uma chave secreta que nunca sai do servidor.
+async function authFn(action, body = {}, { withSession = false } = {}) {
+  const headers = { 'Content-Type': 'application/json', apikey: CONFIG.anonKey, Authorization: `Bearer ${CONFIG.anonKey}` };
+  if (withSession) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) headers.Authorization = `Bearer ${session.access_token}`;
+  }
+  let res;
+  try {
+    res = await fetch(`${CONFIG.url}/functions/v1/auth`, { method: 'POST', headers, body: JSON.stringify({ action, ...body }) });
+  } catch {
+    throw new Error('Sem ligação à internet. Verifique a rede e tente outra vez.');
+  }
+  const out = await res.json().catch(() => ({}));
+  return { status: res.status, ...out };
+}
+async function useSession(session) {
+  if (!session) throw new Error('Não foi possível iniciar a sessão. Tente outra vez.');
+  const { error } = await sb.auth.setSession(session);
+  fail(error, 'Não foi possível iniciar a sessão.');
+}
+const minutes = (s) => Math.max(1, Math.ceil(s / 60));
 
 // Carrega tudo o que esta pessoa pode ver
 export async function sync(force = false) {
@@ -145,16 +167,21 @@ export function lockedFor(telefone) {
 export async function signIn(telefone, pin) {
   if (lockedFor(telefone)) return { locked: lockedFor(telefone) };
   const all = readAttempts();
-  const { error } = await sb.auth.signInWithPassword({ email: emailFor(telefone), password: passFor(pin) });
-  let person = null;
-  if (!error) person = await loadMe();
-  if (error || !person || !STAFF.includes(person.role) || person.estado !== 'ativo') {
-    if (!error) await sb.auth.signOut();
-    if (error && /fetch|network/i.test(error.message)) throw new Error('Sem ligação à internet. Verifique a rede e tente outra vez.');
-    const n = (all[telefone]?.n || 0) + 1;
-    all[telefone] = n >= MAX_ATTEMPTS ? { n: 0, until: Date.now() + LOCK_MS } : { n };
+  const r = await authFn('login', { telefone, pin });
+  if (r.locked) {
+    all[telefone] = { n: 0, until: Date.now() + r.locked * 1000 };
     localStorage.setItem(ATTEMPTS, JSON.stringify(all));
-    return n >= MAX_ATTEMPTS ? { locked: LOCK_MS / 1000 } : { left: MAX_ATTEMPTS - n };
+    return { locked: r.locked };
+  }
+  if (!r.session) {
+    if (r.status >= 500) throw new Error('O servidor não respondeu. Tente outra vez daqui a pouco.');
+    return { left: r.left ?? MAX_ATTEMPTS - 1 };
+  }
+  await useSession(r.session);
+  const person = await loadMe();
+  if (!person || !STAFF.includes(person.role) || person.estado !== 'ativo') {
+    await sb.auth.signOut();
+    return { left: MAX_ATTEMPTS - 1 };
   }
   delete all[telefone];
   localStorage.setItem(ATTEMPTS, JSON.stringify(all));
@@ -183,12 +210,11 @@ export async function needsSetup() {
 }
 
 export async function createAdmin({ nome, telefone, pin }) {
-  const { data, error } = await sb.auth.signUp({ email: emailFor(telefone), password: passFor(pin) });
-  fail(error, 'Não foi possível criar a conta.');
-  if (!data.session) throw new Error('No Supabase, desative "Confirm email" (Authentication › Providers › Email) e tente outra vez.');
-  const r = await sb.rpc('setup_admin', { p_nome: nome, p_telefone: telefone });
-  fail(r.error, 'Não foi possível criar a conta da administração.');
-  me = toPerson(r.data);
+  const r = await authFn('setup_admin', { nome, telefone, pin });
+  if (!r.session) throw new Error(r.error || 'Não foi possível criar a conta.');
+  await useSession(r.session);
+  me = await loadMe();
+  if (!me) throw new Error('Não foi possível criar a conta da administração.');
   sessionStorage.setItem(SESSION, JSON.stringify({ id: me.id, at: Date.now() }));
   localStorage.setItem(LAST, JSON.stringify({ telefone: me.telefone, nome: me.nome, cargo: me.cargo, role: me.role }));
   await sync(true);
@@ -203,33 +229,32 @@ export async function devSetupAvailable(telefone) {
   return !!data;
 }
 export async function createSuper({ nome, telefone, pin }) {
-  const { data, error } = await sb.auth.signUp({ email: emailFor(telefone), password: passFor(pin) });
-  fail(error, 'Não foi possível criar o acesso.');
-  if (!data.session) throw new Error('Não foi possível iniciar a sessão. Tente outra vez.');
-  const r = await sb.rpc('setup_super', { p_nome: nome });
-  if (r.error) { await sb.auth.signOut(); fail(r.error, 'Não foi possível criar o acesso de desenvolvedor.'); }
-  me = toPerson(r.data);
+  const r = await authFn('setup_super', { nome, telefone, pin });
+  if (!r.session) throw new Error(r.error || 'Não foi possível criar o acesso de desenvolvedor.');
+  await useSession(r.session);
+  me = await loadMe();
+  if (!me) throw new Error('Não foi possível criar o acesso de desenvolvedor.');
   sessionStorage.setItem(SESSION, JSON.stringify({ id: me.id, at: Date.now() }));
   localStorage.setItem(LAST, JSON.stringify({ telefone: me.telefone, nome: me.nome, cargo: me.cargo, role: me.role }));
   await sync(true);
   return me;
 }
 
-// Alterar o próprio PIN: confirma o PIN atual antes de gravar o novo
-let pinFails = 0;
+// Alterar o próprio PIN: o servidor confirma o PIN atual (com bloqueio por tentativas)
 export async function changePin(current, next) {
   if (!me) throw new Error('Sessão terminada. Entre outra vez.');
-  const { error } = await sb.auth.signInWithPassword({ email: emailFor(me.telefone), password: passFor(current) });
-  if (error) {
-    if (/fetch|network/i.test(error.message)) throw new Error('Sem ligação à internet. Verifique a rede e tente outra vez.');
-    pinFails += 1;
-    if (pinFails >= MAX_ATTEMPTS) { pinFails = 0; await signOut('pin'); return { signedOut: true }; }
-    throw new Error(`O PIN atual está errado. Restam ${MAX_ATTEMPTS - pinFails} tentativas.`);
-  }
-  pinFails = 0;
-  const u = await sb.auth.updateUser({ password: passFor(next) });
-  fail(u.error, 'Não foi possível alterar o PIN.');
-  return { ok: true };
+  const r = await authFn('change_pin', { current, next }, { withSession: true });
+  if (r.ok) return { ok: true };
+  if (r.locked) { await signOut('pin'); return { signedOut: true }; }
+  if (r.status === 401 && r.left != null) throw new Error(`O PIN atual está errado. Restam ${r.left} tentativas.`);
+  throw new Error(r.error || 'Não foi possível alterar o PIN.');
+}
+
+// A administração gera um PIN novo para um gestor (por exemplo, se o esqueceu)
+export async function resetPin(personId) {
+  const r = await authFn('reset_pin', { person_id: personId }, { withSession: true });
+  if (!r.pin) throw new Error(r.error || 'Não foi possível redefinir o PIN.');
+  return { pin: r.pin };
 }
 
 // Obra ----------------------------------------------------------------------
@@ -326,17 +351,11 @@ export async function createMember({ nome, telefone }) {
 
 export async function createGestor({ nome, telefone }) {
   if (db.members.some((m) => m.telefone === telefone)) throw new Error('Este número já está registado no sistema.');
-  const pin = String(1000 + Math.floor(Math.random() * 9000));
-  // Cliente à parte, sem guardar sessão: cria a conta do gestor sem sair da conta da administração
-  const temp = window.supabase.createClient(CONFIG.url, CONFIG.anonKey, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'nl.tmp' } });
-  const { data, error } = await temp.auth.signUp({ email: emailFor(telefone), password: passFor(pin) });
-  fail(error, 'Não foi possível criar a conta do gestor.');
-  if (!data.user?.identities?.length) throw new Error('Já existe uma conta de acesso com este número.');
-  const r = await sb.rpc('add_gestor', { p_user: data.user.id, p_nome: nome, p_telefone: telefone });
-  fail(r.error, 'Não foi possível adicionar o gestor.');
-  const gestor = toPerson(r.data);
+  const r = await authFn('create_gestor', { nome, telefone }, { withSession: true });
+  if (!r.gestor) throw new Error(r.error || 'Não foi possível adicionar o gestor.');
+  const gestor = toPerson(r.gestor);
   db.members.push(gestor);
-  return { gestor, pin };
+  return { gestor, pin: r.pin };
 }
 
 export async function setSuspended(id, suspenso) {

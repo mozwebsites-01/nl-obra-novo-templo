@@ -624,6 +624,7 @@ async function gestores(ctx) {
         <footer class="gestor__foot">
           <button type="button" class="btn btn-secondary btn-sm" data-see="${g.id}">Recebimentos</button>
           <button type="button" class="btn btn-secondary btn-sm" data-report="${g.id}">${icon('file-text', 15)} Relatório</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-reset="${g.id}" title="Gerar um PIN novo para este gestor">${icon('key-round', 15)} Novo PIN</button>
           <button type="button" class="btn btn-ghost btn-sm" data-susp="${g.id}">${susp ? 'Reativar' : 'Suspender'}</button>
         </footer>
       </article>`;
@@ -638,6 +639,21 @@ async function gestores(ctx) {
     await store.setSuspended(g.id, !susp);
     toast(susp ? `${g.nome} reativado` : `${g.nome} suspenso`);
     ctx.refresh();
+  }));
+  main.querySelectorAll('[data-reset]').forEach((b) => b.addEventListener('click', async () => {
+    const g = list.find((x) => x.id === b.dataset.reset);
+    const ok = await confirmDialog({ title: `Gerar um PIN novo para ${g.nome}?`, text: 'O PIN atual deixa de funcionar. O novo PIN aparece uma única vez: entregue-o ao gestor em privado.', confirmLabel: 'Gerar PIN novo' });
+    if (!ok) return;
+    try {
+      const { pin } = await store.resetPin(g.id);
+      openDialog(`
+        <header class="sheet__head"><h2>PIN novo</h2><button class="icon-btn" data-close aria-label="Fechar">${icon('x')}</button></header>
+        <div class="sheet__body">
+          <p>Entregue estes dados a ${esc(g.nome)} em privado. Depois de entrar, o gestor deve escolher o seu próprio PIN em "A minha conta".</p>
+          <div class="receipt__rows" style="margin-top:16px"><div class="receipt__row"><dt>Telemóvel</dt><dd>+258 ${phoneFmt(g.telefone)}</dd></div><div class="receipt__row"><dt>PIN</dt><dd style="font-size:20px;font-weight:700;letter-spacing:.2em">${esc(pin)}</dd></div></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:20px"><button type="button" class="btn btn-primary" data-close>Concluir</button></div>
+        </div>`);
+    } catch (ex) { toast(ex.message); }
   }));
   document.querySelector('[data-add]').addEventListener('click', () => addGestorDialog(ctx));
 }
@@ -1321,6 +1337,11 @@ async function obra({ main, head }) {
       <section>
         <p class="eyebrow" style="margin-bottom:12px">Pré-visualização</p>
         <div class="preview" data-preview></div>
+        <div class="card pad backup">
+          <p class="eyebrow">Cópia de segurança</p>
+          <p class="hint">Descarregue todos os dados (pessoas, recebimentos, despesas e definições) num ficheiro. Guarde-o num lugar seguro, fora do telemóvel. O servidor também guarda uma cópia automática todos os dias.</p>
+          <button type="button" class="btn btn-secondary" data-backup>${icon('download', 18)} Baixar cópia de segurança</button>
+        </div>
       </section>
     </div>`;
 
@@ -1337,6 +1358,18 @@ async function obra({ main, head }) {
       <div class="obra__foot"><span><strong class="num">${pct(p)}</strong> da meta</span><span class="num">faltam ${money(Math.max(0, meta - s.arrecadado), { decimals: false })}</span></div>
     </div>`;
   };
+  main.querySelector('[data-backup]').addEventListener('click', async () => {
+    const [members, gestoresList, contributions, expenses, settingsNow] = await Promise.all([
+      store.listMembers(), store.listGestores(), store.listContributions({}), store.listExpenses(), store.getSettings(),
+    ]);
+    const data = { sistema: 'NL Obra do Novo Templo', criado_em: new Date().toISOString(), definicoes: settingsNow, gestores: gestoresList, membros: members, recebimentos: contributions, despesas: expenses };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    a.download = `copia-seguranca-nl-obra-${isoDate()}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast(`Cópia guardada: ${members.length} membros, ${contributions.length} recebimentos, ${expenses.length} despesas`);
+  });
   form.addEventListener('input', paintPreview);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
