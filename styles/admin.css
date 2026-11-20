@@ -1091,3 +1091,15 @@ button.a-me:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px;
   .a-nav__fab { box-shadow: none; border: 0; }
   .a-nav .badge { box-shadow: none; }
 }
+/* Menu do telemóvel: tudo centrado — espaços iguais entre os itens e nas pontas */
+@media (max-width: 760px) {
+  .a-nav:not(:has(.a-nav__fab)) { justify-content: space-evenly; gap: 0; }
+  .a-nav a, .a-nav a.is-active { align-items: center; justify-content: center; text-align: center; }
+  .a-nav a .i { display: block; margin: 0; }
+  .a-nav:has(.a-nav__fab) a { justify-self: stretch; }
+  .a-nav:has(.a-nav__fab) { align-items: center; justify-items: center; }
+}
+@media (max-width: 760px) {
+  .a-nav:not(:has(.a-nav__fab)) a { flex: 0 0 40px; }
+  .a-nav:not(:has(.a-nav__fab)) a.is-active { flex: 0 0 auto; max-width: none; padding: 0 12px; }
+}
