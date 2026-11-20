@@ -57,6 +57,11 @@ create table if not exists public.contributions (
   notificado_por uuid references public.people (id),
   notificado_canal text
 );
+alter table public.contributions add column if not exists envio_estado text;
+alter table public.contributions add column if not exists envio_erro text;
+alter table public.contributions add column if not exists envio_em timestamptz;
+alter table public.contributions add column if not exists envio_tentativas int not null default 0;
+alter table public.contributions add column if not exists whatsapp_msg_id text;
 create index if not exists contributions_registado_por on public.contributions (registado_por);
 create index if not exists contributions_data on public.contributions (data desc);
 
@@ -67,6 +72,8 @@ begin
   if new.data > (now() at time zone 'Africa/Maputo')::date then raise exception 'A data do recebimento não pode ser futura.'; end if;
   new.ref := 'NL-' || to_char(now() at time zone 'Africa/Maputo', 'YYYY') || '-' || lpad(nextval('public.receipt_seq')::text, 6, '0');
   new.registado_em := now();
+  -- O envio começa sempre por fazer (só o servidor o marca como enviado)
+  new.envio_estado := null; new.envio_erro := null; new.envio_em := null; new.envio_tentativas := 0; new.whatsapp_msg_id := null;
   return new;
 end $$;
 drop trigger if exists contributions_ref on public.contributions;
@@ -169,3 +176,31 @@ grant execute on function public.setup_admin(text, text) to authenticated;
 grant execute on function public.add_gestor(uuid, text, text) to authenticated;
 grant execute on function public.my_role() to authenticated;
 grant execute on function public.my_person_id() to authenticated;
+
+-- =====================================================================
+-- Envio automático do comprovativo pelo WhatsApp (API oficial da Meta)
+-- Estados: a_enviar → enviado → entregue → lido   ·   falhou (com o motivo)
+-- Só o servidor (funções send-receipt e whatsapp-webhook) altera estes campos.
+-- =====================================================================
+alter table public.contributions drop constraint if exists contributions_envio_estado_check;
+alter table public.contributions add constraint contributions_envio_estado_check
+  check (envio_estado in ('a_enviar', 'enviado', 'entregue', 'lido', 'falhou'));
+alter table public.contributions add column if not exists envio_erro text;
+alter table public.contributions add column if not exists envio_em timestamptz;
+alter table public.contributions add column if not exists envio_tentativas int not null default 0;
+alter table public.contributions add column if not exists whatsapp_msg_id text;
+create index if not exists contributions_whatsapp_msg on public.contributions (whatsapp_msg_id);
+
+-- O navegador não pode marcar um envio como feito: só o servidor (service_role)
+create or replace function public.lock_envio() returns trigger
+language plpgsql as $$
+begin
+  if coalesce(auth.role(), '') <> 'service_role'
+     and (new.envio_estado, new.envio_erro, new.envio_em, new.envio_tentativas, new.whatsapp_msg_id)
+         is distinct from (old.envio_estado, old.envio_erro, old.envio_em, old.envio_tentativas, old.whatsapp_msg_id)
+  then raise exception 'O estado do envio só é atualizado pelo servidor.'; end if;
+  return new;
+end $$;
+drop trigger if exists contributions_lock_envio on public.contributions;
+create trigger contributions_lock_envio before update on public.contributions
+  for each row execute function public.lock_envio();

@@ -6,4 +6,6 @@ export const CONFIG = {
   anonKey: '',
   // Domínio interno dos endereços de acesso (telemóvel@domínio); não recebe emails
   authDomain: 'nl-obra.app',
+  // Envio automático do recibo pelo WhatsApp oficial (função send-receipt no Supabase)
+  whatsappAuto: true,
 };

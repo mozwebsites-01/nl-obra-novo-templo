@@ -17,6 +17,10 @@ function loadScript(src) {
 if (REMOTE && !window.supabase) await loadScript('assets/vendor/supabase.umd.js');
 const impl = REMOTE ? await import('./store-remote.js') : await import('./store-local.js');
 
+// Envio automático do recibo pelo WhatsApp (só com o Supabase)
+export const AUTO_WHATSAPP = Boolean(impl.AUTO_WHATSAPP);
+export const sendReceipt = (...a) => impl.sendReceipt(...a);
+
 const call = (name) => (...args) => {
   if (typeof impl[name] !== 'function') throw new Error(`Função indisponível: ${name}`);
   return impl[name](...args);

@@ -48,6 +48,7 @@ const toContribution = (r) => ({
   comprovativo: null, estado: 'confirmado', motivo: null,
   declaradoEm: r.registado_em, revistoEm: r.registado_em, revistoPor: r.registado_por, registadoPor: r.registado_por,
   notificadoEm: r.notificado_em, notificadoPor: r.notificado_por, notificadoCanal: r.notificado_canal,
+  envioEstado: r.envio_estado || null, envioErro: r.envio_erro || null, envioEm: r.envio_em || null,
 });
 const toSettings = (r) => ({ obraNome: r.obra_nome, meta: Number(r.meta), inicio: r.inicio, prazo: r.prazo, whatsapp: r.whatsapp || '879470600' });
 
@@ -323,6 +324,32 @@ export async function markNotified(id, { por, canal }) {
   const c = toContribution(data);
   db.contributions = db.contributions.map((x) => (x.id === id ? c : x));
   return c;
+}
+
+// Envio automático pelo WhatsApp: o servidor recebe o PDF e envia-o do número oficial
+export const AUTO_WHATSAPP = Boolean(CONFIG.whatsappAuto);
+
+export async function sendReceipt(id, pdfBlob, { force = false } = {}) {
+  const form = new FormData();
+  form.append('contribution_id', id);
+  form.append('pdf', new File([pdfBlob], 'recibo.pdf', { type: 'application/pdf' }));
+  const { data: { session } } = await sb.auth.getSession();
+  let out;
+  try {
+    const res = await fetch(`${CONFIG.url}/functions/v1/send-receipt${force ? '?force=1' : ''}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token || CONFIG.anonKey}`, apikey: CONFIG.anonKey },
+      body: form,
+    });
+    out = await res.json().catch(() => ({ estado: 'falhou', erro: 'Resposta inválida do servidor.' }));
+  } catch {
+    out = { estado: 'falhou', erro: 'Sem ligação à internet. O recibo fica por enviar.' };
+  }
+  const estado = out.estado || 'falhou';
+  const erro = out.erro || out.error || null;
+  db.contributions = db.contributions.map((c) => (c.id === id ? { ...c, envioEstado: estado, envioErro: estado === 'falhou' ? erro : null, envioEm: new Date().toISOString() } : c));
+  syncedAt = 0;
+  return { estado, erro };
 }
 
 // Sem painel do membro: funções mantidas só por compatibilidade

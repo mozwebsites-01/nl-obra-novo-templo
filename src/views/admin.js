@@ -12,7 +12,7 @@ import {
   METODOS, money, pct, fmtDate, fmtDateShort, fmtDateTime, fmtLongToday, monthKey, monthShort, monthLong,
   phoneFmt, isValidPhone, isoDate, parseAmount, defaultPayer, firstName, periodRange, shiftPeriod,
 } from '../format.js';
-import { receiptData, whatsappLink, downloadPdf, sharePdf, canSharePdf, pdfButton, warmPdf } from '../share.js';
+import { receiptData, whatsappLink, downloadPdf, sharePdf, canSharePdf, pdfButton, warmPdf, receiptPdf } from '../share.js';
 import { downloadReportPdf } from '../reportpdf.js';
 
 // [chave, rótulo, ícone, rótulo curto para a barra inferior do telemóvel]
@@ -145,7 +145,46 @@ function bindPdf(d, data) {
 }
 
 // Enviar o comprovativo ao membro: WhatsApp com a mensagem pronta, PDF partilhado ou descarregado
+// Envio automático (WhatsApp oficial): estado de cada recibo, como numa notificação bancária
+const ENVIO = {
+  a_enviar: ['A enviar o comprovativo por WhatsApp…', 'is-busy'],
+  enviado: ['Comprovativo enviado por WhatsApp', 'is-ok'],
+  entregue: ['Comprovativo entregue no WhatsApp do membro', 'is-ok'],
+  lido: ['Comprovativo lido pelo membro', 'is-ok'],
+  falhou: ['O comprovativo não foi enviado', 'is-bad'],
+};
+
+function autoBox(c, data) {
+  const st = c.envioEstado;
+  const [label, cls] = ENVIO[st] || ['O comprovativo ainda não foi enviado', 'is-idle'];
+  const from = `de +258 ${esc(phoneFmt(data.w || '879470600'))} para +258 ${esc(phoneFmt(data.t))}`;
+  return `<section class="deliver deliver--auto ${cls}" aria-live="polite" aria-label="Envio do comprovativo">
+    <div class="deliver__head">
+      <span class="deliver__icon">${st === 'a_enviar' ? '<span class="btn-spin" aria-hidden="true"></span>' : icon(st === 'falhou' ? 'x' : st ? 'check' : 'message-circle', 20)}</span>
+      <div><p class="deliver__title">${label}</p>
+      <p class="muted small">WhatsApp ${from}${c.envioEm && st !== 'a_enviar' ? ` · ${esc(fmtDateTime(c.envioEm))}` : ''}</p></div>
+    </div>
+    ${st === 'falhou' && c.envioErro ? `<p class="deliver__err">${esc(c.envioErro)}</p>` : ''}
+    ${!st || st === 'falhou' ? `<div class="deliver__actions"><button type="button" class="btn btn-primary" data-auto-send>${icon('send', 17)} ${st ? 'Tentar de novo' : 'Enviar agora'}</button></div>` : ''}
+  </section>`;
+}
+
+async function autoSend(d, c, data) {
+  const paint = (x) => {
+    const box = d.querySelector('.deliver');
+    if (box) box.outerHTML = autoBox(x, data);
+    d.querySelector('[data-auto-send]')?.addEventListener('click', () => autoSend(d, x, data));
+  };
+  paint({ ...c, envioEstado: 'a_enviar' });
+  let res;
+  try { res = await store.sendReceipt(c.id, await receiptPdf(data), { force: c.envioEstado === 'falhou' }); } catch (ex) { res = { estado: 'falhou', erro: ex.message }; }
+  d.dataset.changed = '1';
+  paint({ ...c, envioEstado: res.estado, envioErro: res.erro, envioEm: new Date().toISOString() });
+  toast(res.estado === 'falhou' ? 'O comprovativo não foi enviado' : `Comprovativo enviado a ${firstName(data.n)} por WhatsApp`);
+}
+
 function deliverBox(c, data) {
+  if (store.AUTO_WHATSAPP) return autoBox(c, data);
   const sent = c.notificadoEm
     ? `<p class="deliver__sent">${icon('check', 14)} Enviado ${c.notificadoCanal === 'pdf' ? 'em PDF' : 'por WhatsApp'} em ${esc(fmtDateTime(c.notificadoEm))}</p>`
     : '';
@@ -165,6 +204,10 @@ function deliverBox(c, data) {
 }
 
 function wireDeliver(d, c, data, user) {
+  if (store.AUTO_WHATSAPP) {
+    d.querySelector('[data-auto-send]')?.addEventListener('click', () => autoSend(d, c, data));
+    return;
+  }
   const mark = async (canal) => {
     await store.markNotified(c.id, { por: user.id, canal });
     d.dataset.changed = '1';
@@ -329,6 +372,7 @@ async function recordDialog(ctx, preMemberId = '') {
       <div class="sheet__foot"><button type="button" class="btn btn-secondary" data-again>Registar outra</button><button type="button" class="btn btn-primary" data-pdf>${icon('download', 18)} Baixar PDF</button></div>`;
     bindPdf(d, rd);
     wireDeliver(d, c, rd, ctx.user);
+    if (store.AUTO_WHATSAPP) autoSend(d, c, rd);
     d.querySelector('[data-again]').addEventListener('click', () => { d.close(); recordDialog(ctx); });
     d.addEventListener('close', () => ctx.refresh(), { once: true });
     toast(`Recibo ${c.ref} emitido · ${money(c.valor)}`);
@@ -434,6 +478,16 @@ async function inicio(ctx) {
   bindReceiptRows(main, mine, people);
 }
 
+// Etiqueta do envio do comprovativo na lista de recebimentos
+function sentBadge(c) {
+  if (store.AUTO_WHATSAPP) {
+    if (c.envioEstado === 'falhou') return `<span class="cell-sent is-bad" title="${esc(c.envioErro || '')}">${icon('x', 12)} Não enviado</span>`;
+    const t = { enviado: 'Enviado', entregue: 'Entregue', lido: 'Lido', a_enviar: 'A enviar' }[c.envioEstado];
+    return t ? `<span class="cell-sent" title="Comprovativo por WhatsApp">${icon('check', 12)} ${t}</span>` : '';
+  }
+  return c.notificadoEm ? `<span class="cell-sent" title="Comprovativo enviado ao membro">${icon('check', 12)} Enviado</span>` : '';
+}
+
 // Tabela de recebimentos (partilhada) -------------------------------------
 function receiptsTable(list, people, { showReceiver = false } = {}) {
   if (!list.length) return '<p class="empty">Ainda não há recebimentos. Os valores registados pelos gestores aparecem aqui.</p>';
@@ -442,7 +496,7 @@ function receiptsTable(list, people, { showReceiver = false } = {}) {
     <tbody>${list.map((c) => {
       const m = people.get(c.membroId);
       const g = people.get(c.registadoPor);
-      return `<tr class="click" data-id="${c.id}" tabindex="0"><td class="num muted c-ref">${esc(c.ref)}${c.notificadoEm ? `<span class="cell-sent" title="Comprovativo enviado ao membro">${icon('check', 12)} Enviado</span>` : ''}</td><td class="c-mem"><span class="cell-name">${esc(m?.nome || '—')}</span>${m?.telefone ? `<span class="cell-sub num" style="display:block">${esc(phoneFmt(m.telefone))}</span>` : ''}</td><td class="c-date">${fmtDate(c.data)}<span class="m-only"> · ${METODOS[c.metodo]}</span></td><td class="c-met"><span class="cell-name">${c.metodo === 'banco' ? 'Transferência' : METODOS[c.metodo]}</span><span class="cell-sub" style="display:block">${esc(c.pagador || '—')}${c.referencia ? ` · <span class="num">${esc(c.referencia)}</span>` : ''}</span></td>${showReceiver ? `<td class="c-rec"><span class="m-only">Recebido por </span>${esc(g?.nome || '—')}</td>` : ''}<td class="r cell-amount c-amt">${money(c.valor)}</td></tr>`;
+      return `<tr class="click" data-id="${c.id}" tabindex="0"><td class="num muted c-ref">${esc(c.ref)}${sentBadge(c)}</td><td class="c-mem"><span class="cell-name">${esc(m?.nome || '—')}</span>${m?.telefone ? `<span class="cell-sub num" style="display:block">${esc(phoneFmt(m.telefone))}</span>` : ''}</td><td class="c-date">${fmtDate(c.data)}<span class="m-only"> · ${METODOS[c.metodo]}</span></td><td class="c-met"><span class="cell-name">${c.metodo === 'banco' ? 'Transferência' : METODOS[c.metodo]}</span><span class="cell-sub" style="display:block">${esc(c.pagador || '—')}${c.referencia ? ` · <span class="num">${esc(c.referencia)}</span>` : ''}</span></td>${showReceiver ? `<td class="c-rec"><span class="m-only">Recebido por </span>${esc(g?.nome || '—')}</td>` : ''}<td class="r cell-amount c-amt">${money(c.valor)}</td></tr>`;
     }).join('')}</tbody></table>`;
 }
 

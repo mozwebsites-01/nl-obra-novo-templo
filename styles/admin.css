@@ -823,3 +823,12 @@ dialog.sheet[open] { display: flex; }
 .phone--light input { flex: 1; min-width: 0; border: 0; outline: none; padding: 0 12px; font-size: 15px; font-variant-numeric: tabular-nums; background: none; color: var(--ink); }
 .phone--light:focus-within { border-color: var(--navy); }
 .pub__contact { margin-top: 10px; }
+
+/* Envio automático do comprovativo */
+.deliver--auto.is-ok { border-color: #CFE3D6; background: #F4FAF6; }
+.deliver--auto.is-ok .deliver__icon { background: #E1F0E6; color: var(--ok); }
+.deliver--auto.is-bad { border-color: #EBC9C9; background: #FDF6F6; }
+.deliver--auto.is-bad .deliver__icon { background: #F6E1E1; color: var(--bad); }
+.deliver--auto.is-busy .deliver__icon { color: var(--navy); }
+.deliver__err { margin-top: 10px; font-size: 13px; color: var(--bad); line-height: 1.45; }
+.cell-sent.is-bad { color: var(--bad); }

@@ -28,6 +28,12 @@ para a administração e os gestores; noutro telemóvel o sistema aparece vazio.
 
 Sem configuração, o sistema guarda os dados só no navegador (`src/store-local.js`).
 
+### Envio automático do recibo pelo WhatsApp
+
+Com o Supabase ligado, cada contribuição registada é enviada automaticamente ao membro pelo
+WhatsApp oficial da tesouraria (+258 87 947 0600), com o recibo em PDF anexado. Passo a passo
+(Meta, modelo de mensagem, funções e webhook): [supabase/WHATSAPP.md](supabase/WHATSAPP.md).
+
 ## Abrir localmente
 
 ```bash
