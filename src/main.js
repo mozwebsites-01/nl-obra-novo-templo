@@ -81,7 +81,7 @@ async function route() {
   if (hash.startsWith('/recibo/')) return renderPublicReceipt(app, hash.slice('/recibo/'.length));
   const user = await store.getSessionUser();
   // Só existe a área de gestão (administração e gestores)
-  const home = user?.role === 'admin' ? '#/a/painel' : '#/a/inicio';
+  const home = ['admin', 'super'].includes(user?.role) ? '#/a/painel' : '#/a/inicio';
   armIdle();
 
   if (!user) {

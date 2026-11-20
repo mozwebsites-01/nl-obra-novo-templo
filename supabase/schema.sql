@@ -299,3 +299,63 @@ grant select, insert, update on public.expenses to authenticated;
 grant usage, select on sequence public.expense_seq to authenticated;
 grant all on public.expenses to service_role;
 grant usage, select on sequence public.expense_seq to service_role;
+
+-- =====================================================================
+-- Acesso de desenvolvedor (super admin): acesso total, para manutenção.
+-- Uma única conta, para um número reservado em dev_config (o número NÃO fica
+-- neste ficheiro: é gravado diretamente no servidor). A conta é criada pelo
+-- próprio desenvolvedor no ecrã de entrada, com o PIN que ele escolher.
+-- Esta secção só acrescenta: não altera nem apaga dados.
+-- =====================================================================
+alter table public.people drop constraint if exists people_role_check;
+alter table public.people add constraint people_role_check check (role in ('admin', 'gestor', 'membro', 'super'));
+create unique index if not exists one_super on public.people ((true)) where role = 'super';
+
+create table if not exists public.dev_config (
+  id int primary key default 1 check (id = 1),
+  super_phone text check (super_phone ~ '^8[2-7][0-9]{7}$')
+);
+alter table public.dev_config enable row level security; -- sem regras: ninguém a lê pela API
+revoke all on public.dev_config from anon, authenticated;
+
+-- O desenvolvedor conta como administração em todas as regras de acesso
+create or replace function public.my_person_id() returns uuid
+language sql stable security definer set search_path = public as $$
+  select id from public.people where user_id = auth.uid() and estado = 'ativo' and role in ('admin', 'gestor', 'super')
+$$;
+create or replace function public.my_role() returns text
+language sql stable security definer set search_path = public as $$
+  select case when role = 'super' then 'admin' else role end
+  from public.people where user_id = auth.uid() and estado = 'ativo' and role in ('admin', 'gestor', 'super')
+$$;
+
+-- A administração não altera a conta de desenvolvedor (nem a sua própria)
+drop policy if exists people_admin_update on public.people;
+create policy people_admin_update on public.people for update to authenticated
+  using (public.my_role() = 'admin' and role not in ('admin', 'super')) with check (public.my_role() = 'admin' and role not in ('admin', 'super'));
+
+-- Ecrã de entrada: este número pode criar o acesso de desenvolvedor? (só enquanto não existir)
+create or replace function public.dev_setup_available(p_telefone text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.dev_config where super_phone = p_telefone)
+     and not exists (select 1 from public.people where role = 'super')
+$$;
+
+-- Cria a conta de desenvolvedor: só para a conta de acesso do número reservado, uma única vez
+create or replace function public.setup_super(p_nome text) returns public.people
+language plpgsql security definer set search_path = public as $$
+declare v_tel text; v_email text; r public.people;
+begin
+  if auth.uid() is null then raise exception 'Sessão em falta.'; end if;
+  select super_phone into v_tel from public.dev_config where id = 1;
+  if v_tel is null then raise exception 'Acesso de desenvolvedor não configurado.'; end if;
+  if exists (select 1 from public.people where role = 'super') then raise exception 'O acesso de desenvolvedor já foi criado.'; end if;
+  select email into v_email from auth.users where id = auth.uid();
+  if v_email is distinct from v_tel || '@nl-obra.app' then raise exception 'Número não autorizado.'; end if;
+  insert into public.people (user_id, nome, telefone, role, cargo) values (auth.uid(), p_nome, v_tel, 'super', 'Desenvolvedor') returning * into r;
+  return r;
+end $$;
+
+revoke all on function public.setup_super(text) from public;
+grant execute on function public.dev_setup_available(text) to anon, authenticated;
+grant execute on function public.setup_super(text) to authenticated;

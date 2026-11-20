@@ -9,7 +9,7 @@ import {
   esc, icon, avatar, progress, ruler, barChart, receipt, toast, openDialog, confirmDialog, navigate,
 } from '../ui.js';
 import {
-  METODOS, CATEGORIAS, money, pct, fmtDate, fmtDateShort, fmtDateTime, fmtLongToday, monthKey, monthShort, monthLong,
+  pinProblem, METODOS, CATEGORIAS, money, pct, fmtDate, fmtDateShort, fmtDateTime, fmtLongToday, monthKey, monthShort, monthLong,
   phoneFmt, isValidPhone, isoDate, parseAmount, defaultPayer, firstName, periodRange, shiftPeriod,
 } from '../format.js';
 import { receiptData, whatsappLink, downloadPdf, sharePdf, canSharePdf, pdfButton, warmPdf, receiptPdf } from '../share.js';
@@ -32,7 +32,8 @@ const NAV_GESTOR = [
   ['relatorios', 'Relatórios', 'file-text', 'Relatórios'],
 ];
 
-const isAdmin = (u) => u.role === 'admin';
+// A conta de desenvolvedor (super admin) tem o mesmo acesso que a administração
+const isAdmin = (u) => u.role === 'admin' || u.role === 'super';
 
 // Campos de telemóvel (+258) nas janelas: só algarismos, no máximo 9, no formato 84 123 4567
 document.addEventListener('input', (e) => {
@@ -42,7 +43,7 @@ document.addEventListener('input', (e) => {
   el.value = d.length > 5 ? `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5)}` : d.length > 2 ? `${d.slice(0, 2)} ${d.slice(2)}` : d;
 });
 const sumv = (l) => l.reduce((s, c) => s + c.valor, 0);
-const roleLabel = (u) => u.cargo || (isAdmin(u) ? 'Administração' : 'Gestor');
+const roleLabel = (u) => (u.role === 'super' ? 'Desenvolvedor' : u.cargo || (isAdmin(u) ? 'Administração' : 'Gestor'));
 
 // Recebimentos visíveis para este utilizador: a administração vê tudo, o gestor só os seus
 async function visibleReceipts(user) {
@@ -115,7 +116,12 @@ export async function renderAdmin(root, page, user, param) {
       <aside class="a-side">
         <div class="a-side__logo"><img class="a-side__lockup" src="assets/brand/logo-lockup-white.svg" alt="Nataniel Litsure Ministries" width="148" height="65"><img class="a-side__mark" src="assets/brand/mark-white.svg" alt="" aria-hidden="true" width="36" height="36"></div>
         <nav class="a-nav" aria-label="Gestão" style="--nav-n:${nav.length};--nav-p:${nav.filter((n) => !n[4]).length}">
-          ${nav.map(([k, l, ic, short, x]) => `<a href="#/a/${k}" data-nav="${k}" title="${l}" class="${k === page ? 'is-active' : ''}${x ? ` ${x}` : ''}" ${k === page ? 'aria-current="page"' : ''}>${icon(ic, 18)}<span class="a-nav__full">${l}</span><span class="a-nav__short">${short}</span></a>`).join('')}
+          ${(() => {
+            const items = nav.map(([k, l, ic, short, x]) => `<a href="#/a/${k}" data-nav="${k}" title="${l}" aria-label="${l}" class="${k === page ? 'is-active' : ''}${x ? ` ${x}` : ''}" ${k === page ? 'aria-current="page"' : ''}>${icon(ic, 18)}<span class="a-nav__full">${l}</span><span class="a-nav__short">${short}</span></a>`);
+            // Telemóvel do gestor: botão central para registar uma contribuição
+            if (!isAdmin(user)) items.splice(2, 0, `<button type="button" class="a-nav__fab" data-record aria-label="Registar contribuição" title="Registar contribuição">${icon('plus', 24)}</button>`);
+            return items.join('');
+          })()}
         </nav>
         <div class="a-side__foot">
           ${mine ? `<div class="side-saldo"><p>O seu saldo acumulado</p><p class="side-saldo__v num">${money(mine.total.valor, { decimals: false })}</p></div>` : ''}
@@ -127,7 +133,7 @@ export async function renderAdmin(root, page, user, param) {
           <img class="a-bar__brand" src="assets/brand/logo-lockup-navy.svg" alt="Nataniel Litsure Ministries" width="92" height="40"><form class="a-search" data-search role="search">${icon('search', 18)}<input type="search" placeholder="Procurar membro, recibo ou referência" aria-label="Procurar"></form>
           <div class="a-bar__end">
             ${isAdmin(user) ? '' : `<button type="button" class="btn btn-primary btn-sm a-bar__cta" data-record aria-label="Registar contribuição">${icon('plus-circle', 16)}<span class="a-bar__cta-t">Registar contribuição</span></button><span class="a-bar__sep" aria-hidden="true"></span>`}
-            <div class="a-me">${avatar(user, 34)}<div><p>${esc(user.nome)}</p><p class="a-me__role">${esc(roleLabel(user))}</p></div></div>
+            <button type="button" class="a-me" data-account title="A minha conta · alterar PIN">${avatar(user, 34)}<div><p>${esc(user.nome)}</p><p class="a-me__role">${esc(roleLabel(user))}</p></div></button>
             <button type="button" class="a-out" data-act="logout" aria-label="Terminar sessão" title="Terminar sessão">${icon('log-out', 18)}<span>Sair</span></button>
           </div>
         </div>
@@ -156,7 +162,8 @@ export async function renderAdmin(root, page, user, param) {
     await store.signOut('saiu');
     navigate('#/entrar');
   });
-  root.querySelector('[data-record]')?.addEventListener('click', () => recordDialog(ctx));
+  root.querySelectorAll('[data-record]').forEach((b) => b.addEventListener('click', () => recordDialog(ctx)));
+  root.querySelector('[data-account]').addEventListener('click', () => accountDialog(ctx));
   root.querySelector('[data-search]').addEventListener('submit', (e) => {
     e.preventDefault();
     sessionStorage.setItem('nl.q', e.currentTarget.querySelector('input').value.trim());
@@ -166,6 +173,49 @@ export async function renderAdmin(root, page, user, param) {
   const pages = { painel, inicio, gestores, contribuicoes, despesas, membros, relatorios, obra };
   await pages[page](ctx);
   window.scrollTo(0, 0);
+}
+
+// A minha conta: dados e alteração do PIN ------------------------------------
+function accountDialog(ctx) {
+  const u = ctx.user;
+  const pinField = (id, label) => `<div class="field"><label for="${id}">${label}</label><input class="input pin-input" id="${id}" type="password" inputmode="numeric" maxlength="4" autocomplete="${id === 'pa-cur' ? 'current-password' : 'new-password'}" placeholder="••••"></div>`;
+  const d = openDialog(`
+    <header class="sheet__head"><h2>A minha conta</h2><button class="icon-btn" data-close aria-label="Fechar">${icon('x')}</button></header>
+    <form class="sheet__body account" novalidate>
+      <div class="account__who">${avatar(u, 48)}<div><p class="account__name">${esc(u.nome)}</p><p class="muted small">${esc(roleLabel(u))} · <span class="num">+258 ${esc(phoneFmt(u.telefone))}</span></p></div></div>
+      <section class="account__sec">
+        <h3>${icon('key-round', 18)} Alterar PIN</h3>
+        <p class="hint">Escolha um PIN que só você conheça e não o partilhe com ninguém.</p>
+        ${pinField('pa-cur', 'PIN atual')}
+        <div class="rec-form__row">${pinField('pa-new', 'Novo PIN')}${pinField('pa-rep', 'Repita o novo PIN')}</div>
+        <p class="error-text" data-error hidden></p>
+      </section>
+      <div class="rec-form__foot"><button type="button" class="btn btn-secondary" data-close>Cancelar</button><button type="submit" class="btn btn-primary">${icon('check', 18)} Guardar novo PIN</button></div>
+    </form>`);
+  const form = d.querySelector('form');
+  const $ = (q) => d.querySelector(q);
+  d.querySelectorAll('.pin-input').forEach((i) => i.addEventListener('input', () => { i.value = i.value.replace(/\D/g, '').slice(0, 4); }));
+  $('#pa-cur').focus();
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const cur = $('#pa-cur').value, p1 = $('#pa-new').value, p2 = $('#pa-rep').value;
+    const err = $('[data-error]');
+    const msg = !/^\d{4}$/.test(cur) ? 'Introduza o seu PIN atual (4 dígitos).'
+      : pinProblem(p1, p2) || (p1 === cur ? 'O novo PIN tem de ser diferente do atual.' : '');
+    err.textContent = msg; err.hidden = !msg;
+    if (msg) return;
+    const btn = form.querySelector('[type=submit]');
+    btn.disabled = true;
+    try {
+      const r = await store.changePin(cur, p1);
+      if (r?.signedOut) { d.close(); navigate('#/entrar'); return; }
+      d.close();
+      toast('PIN alterado. Use o novo PIN na próxima entrada.');
+    } catch (ex) {
+      err.textContent = ex.message; err.hidden = false; btn.disabled = false;
+      $('#pa-cur').value = ''; $('#pa-cur').focus();
+    }
+  });
 }
 
 // Recibo --------------------------------------------------------------------

@@ -145,7 +145,7 @@ export async function findMemberByPhone(telefone) {
 // Estados do membro: pendente (aguarda aprovação) · ativo · suspenso · recusado
 const isActive = (m) => !m.estado || m.estado === 'ativo';
 // Só a administração e os gestores entram no sistema
-export const STAFF = ['admin', 'gestor'];
+export const STAFF = ['admin', 'gestor', 'super'];
 const canSignIn = (m) => STAFF.includes(m.role) && isActive(m);
 
 // Tentativas falhadas por número: ao fim de 5, a entrada fica bloqueada 60 s.
@@ -491,4 +491,34 @@ export async function unreadCount(membroId) {
 export async function markAllRead(membroId) {
   for (const n of db.notifications) if (n.membroId === membroId) n.lida = true;
   save();
+}
+
+// Acesso de desenvolvedor (super admin): número reservado em db.devPhone
+export async function devSetupAvailable(telefone) {
+  return !!db.devPhone && db.devPhone === telefone && !db.members.some((m) => m.role === 'super');
+}
+export async function createSuper({ nome, telefone, pin }) {
+  if (!(await devSetupAvailable(telefone))) throw new Error('Número não autorizado.');
+  const m = { id: uid('m_'), nome, telefone, pin, role: 'super', cargo: 'Desenvolvedor', estado: 'ativo', criadoEm: new Date().toISOString() };
+  db.members.push(m);
+  save();
+  sessionStorage.setItem(SESSION, JSON.stringify({ id: m.id, at: Date.now() }));
+  return m;
+}
+
+// Alterar o próprio PIN
+let pinFails = 0;
+export async function changePin(current, next) {
+  const s = JSON.parse(sessionStorage.getItem(SESSION) || 'null');
+  const m = s && db.members.find((x) => x.id === s.id);
+  if (!m) throw new Error('Sessão terminada. Entre outra vez.');
+  if (m.pin !== current) {
+    pinFails += 1;
+    if (pinFails >= MAX_ATTEMPTS) { pinFails = 0; await signOut('pin'); return { signedOut: true }; }
+    throw new Error(`O PIN atual está errado. Restam ${MAX_ATTEMPTS - pinFails} tentativas.`);
+  }
+  pinFails = 0;
+  m.pin = next;
+  save();
+  return { ok: true };
 }

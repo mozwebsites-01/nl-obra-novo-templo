@@ -31,6 +31,9 @@ export const STAFF = impl.STAFF;
 export const MAX_ATTEMPTS = impl.MAX_ATTEMPTS;
 
 export const createAdmin = call('createAdmin');
+export const createSuper = call('createSuper');
+export const devSetupAvailable = call('devSetupAvailable');
+export const changePin = call('changePin');
 export const createGestor = call('createGestor');
 export const createMember = call('createMember');
 export const declareContribution = call('declareContribution');

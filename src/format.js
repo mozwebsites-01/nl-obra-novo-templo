@@ -175,3 +175,13 @@ export function porExtenso(valor) {
   const ct = `${inteiroPorExtenso(cent)} ${cent === 1 ? 'centavo' : 'centavos'}`;
   return inteiro ? `${mt} e ${ct}` : ct;
 }
+
+// PIN de 4 dígitos: recusa os que se adivinham facilmente (repetidos, sequências,
+// coluna do teclado 2-5-8-0 e os mais usados).
+const WEAK_PINS = new Set(['2580', '0852', '1212', '1122', '1313', '1010', '2000', '1004', '6969', '2468', '1357']);
+export function pinProblem(p1, p2) {
+  if (!/^\d{4}$/.test(p1 || '')) return 'O PIN tem de ter 4 dígitos.';
+  if (/^(\d)\1{3}$/.test(p1) || WEAK_PINS.has(p1) || '0123456789'.includes(p1) || '9876543210'.includes(p1)) return 'Este PIN é fácil de adivinhar. Escolha outro.';
+  if (p2 !== undefined && p1 !== p2) return 'Os dois PIN não coincidem.';
+  return '';
+}

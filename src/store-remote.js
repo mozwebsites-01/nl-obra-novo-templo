@@ -8,7 +8,7 @@ const SESSION = 'nl.session.v1';
 const LAST = 'nl.last.v2';
 const EXIT = 'nl.exit';
 export const SESSION_TTL = 3 * 60 * 1000;
-export const STAFF = ['admin', 'gestor'];
+export const STAFF = ['admin', 'gestor', 'super'];
 export const MAX_ATTEMPTS = 5;
 const LOCK_MS = 60 * 1000;
 const ATTEMPTS = 'nl.attempts.v1';
@@ -65,7 +65,7 @@ const sum = (list) => list.reduce((s, c) => s + c.valor, 0);
 export async function sync(force = false) {
   if (!me) return;
   if (!force && Date.now() - syncedAt < 4000) return;
-  const isAdmin = me.role === 'admin';
+  const isAdmin = me.role === 'admin' || me.role === 'super';
   const [s, p, c, e] = await Promise.all([
     sb.from('settings').select('*').eq('id', 1).maybeSingle(),
     sb.from('people').select('*').order('nome'),
@@ -170,7 +170,7 @@ export async function signOut(reason) {
   for (const k of ['nl.q', 'nl.gestor']) sessionStorage.removeItem(k);
   if (reason) sessionStorage.setItem(EXIT, reason);
   me = null;
-  db = { settings: { ...DEFAULT_SETTINGS }, members: [], contributions: [] };
+  db = { settings: { ...DEFAULT_SETTINGS }, members: [], contributions: [], expenses: [] };
   syncedAt = 0;
   await sb.auth.signOut().catch(() => {});
 }
@@ -193,6 +193,43 @@ export async function createAdmin({ nome, telefone, pin }) {
   localStorage.setItem(LAST, JSON.stringify({ telefone: me.telefone, nome: me.nome, cargo: me.cargo, role: me.role }));
   await sync(true);
   return me;
+}
+
+// Acesso de desenvolvedor (super admin) -------------------------------------
+// Só existe para o número reservado no servidor (tabela dev_config) e só uma vez.
+export async function devSetupAvailable(telefone) {
+  const { data, error } = await sb.rpc('dev_setup_available', { p_telefone: telefone });
+  if (error) return false;
+  return !!data;
+}
+export async function createSuper({ nome, telefone, pin }) {
+  const { data, error } = await sb.auth.signUp({ email: emailFor(telefone), password: passFor(pin) });
+  fail(error, 'Não foi possível criar o acesso.');
+  if (!data.session) throw new Error('Não foi possível iniciar a sessão. Tente outra vez.');
+  const r = await sb.rpc('setup_super', { p_nome: nome });
+  if (r.error) { await sb.auth.signOut(); fail(r.error, 'Não foi possível criar o acesso de desenvolvedor.'); }
+  me = toPerson(r.data);
+  sessionStorage.setItem(SESSION, JSON.stringify({ id: me.id, at: Date.now() }));
+  localStorage.setItem(LAST, JSON.stringify({ telefone: me.telefone, nome: me.nome, cargo: me.cargo, role: me.role }));
+  await sync(true);
+  return me;
+}
+
+// Alterar o próprio PIN: confirma o PIN atual antes de gravar o novo
+let pinFails = 0;
+export async function changePin(current, next) {
+  if (!me) throw new Error('Sessão terminada. Entre outra vez.');
+  const { error } = await sb.auth.signInWithPassword({ email: emailFor(me.telefone), password: passFor(current) });
+  if (error) {
+    if (/fetch|network/i.test(error.message)) throw new Error('Sem ligação à internet. Verifique a rede e tente outra vez.');
+    pinFails += 1;
+    if (pinFails >= MAX_ATTEMPTS) { pinFails = 0; await signOut('pin'); return { signedOut: true }; }
+    throw new Error(`O PIN atual está errado. Restam ${MAX_ATTEMPTS - pinFails} tentativas.`);
+  }
+  pinFails = 0;
+  const u = await sb.auth.updateUser({ password: passFor(next) });
+  fail(u.error, 'Não foi possível alterar o PIN.');
+  return { ok: true };
 }
 
 // Obra ----------------------------------------------------------------------

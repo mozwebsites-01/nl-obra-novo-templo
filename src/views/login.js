@@ -1,6 +1,6 @@
 import * as store from '../store.js';
 import { esc, icon, avatar, navigate } from '../ui.js';
-import { isValidPhone, phoneFmt, firstName } from '../format.js';
+import { isValidPhone, phoneFmt, firstName, pinProblem } from '../format.js';
 
 export async function renderLogin(root) {
   document.body.className = 'is-login';
@@ -13,6 +13,7 @@ export async function renderLogin(root) {
   const NOTICE = {
     saiu: ['check', 'Sessão terminada com segurança.'],
     inatividade: ['history', 'A sessão terminou por inatividade. Entre novamente para continuar.'],
+    pin: ['key-round', 'Por segurança, a sessão terminou: o PIN atual foi introduzido errado 5 vezes.'],
   };
   let lockTimer;
 
@@ -60,7 +61,10 @@ export async function renderLogin(root) {
       telefone = digits;
       let m;
       try { m = await store.findMemberByPhone(telefone); } catch (ex) { return phoneStep(ex.message); }
-      if (!m) return phoneStep('Este número não tem acesso ao sistema. Fale com a administração da obra.');
+      if (!m) {
+        if (await store.devSetupAvailable(telefone).catch(() => false)) return devSetupStep();
+        return phoneStep('Este número não tem acesso ao sistema. Fale com a administração da obra.');
+      }
       if (m.role === 'membro') return phoneStep('Este número não tem acesso ao sistema. Fale com a administração da obra.');
       if (m.estado === 'suspenso') return statusStep('suspenso');
       pinStep();
@@ -100,7 +104,7 @@ export async function renderLogin(root) {
     if (m && !m.nome) m = null;
     const head = known && m
       ? `<div class="login__who">${avatar(m, 56)}<div><h1 class="login__title">Olá, ${esc(firstName(m.nome))}</h1>
-          <p class="login__lead">${esc(m.role === 'admin' ? 'Administração' : m.cargo || 'Gestor')} · +258 ${esc(phoneFmt(telefone))}</p></div></div>
+          <p class="login__lead">${esc(m.role === 'admin' ? 'Administração' : m.role === 'super' ? 'Desenvolvedor' : m.cargo || 'Gestor')} · +258 ${esc(phoneFmt(telefone))}</p></div></div>
          <p class="login__lead login__lead--pin">Introduza o seu PIN de 4 dígitos.</p>`
       : `<button type="button" class="pin-back" data-back>${icon('chevron-left', 16)} +258 ${esc(phoneFmt(telefone))}</button>
          <h1 class="login__title">Introduza o seu PIN</h1>
@@ -146,7 +150,7 @@ export async function renderLogin(root) {
       }
       await new Promise((r) => setTimeout(r, 180));
       busy = false;
-      if (res.user) { clearInterval(lockTimer); return navigate(res.user.role === 'admin' ? '#/a/painel' : '#/a/inicio'); }
+      if (res.user) { clearInterval(lockTimer); return navigate(['admin', 'super'].includes(res.user.role) ? '#/a/painel' : '#/a/inicio'); }
       pin = '';
       paint();
       dots.classList.add('is-error');
@@ -211,14 +215,43 @@ export async function renderLogin(root) {
       const p1 = step.querySelector('#s-p1').value, p2 = step.querySelector('#s-p2').value;
       const msg = nome.split(' ').length < 2 ? 'Indique o nome e o apelido.'
         : !isValidPhone(digits) ? 'Indique os 9 dígitos do telemóvel, começando por 8.'
-        : !/^\d{4}$/.test(p1) ? 'O PIN tem de ter 4 dígitos.'
-        : /^(\d)\1{3}$/.test(p1) || ['1234', '4321', '0000'].includes(p1) ? 'Escolha um PIN menos óbvio.'
-        : p1 !== p2 ? 'Os dois PIN não coincidem.' : '';
+        : pinProblem(p1, p2);
       if (msg) return setupStep(msg);
       try {
         await store.createAdmin({ nome, telefone: digits, pin: p1 });
         navigate('#/a/painel');
       } catch (ex) { setupStep(ex.message); }
+    });
+  }
+
+  // Acesso de desenvolvedor (super admin): só para o número reservado no servidor, uma única vez.
+  // O PIN é escolhido aqui pelo próprio desenvolvedor e nunca sai deste ecrã.
+  function devSetupStep(error = '') {
+    step.innerHTML = `
+      <button type="button" class="pin-back" data-back>${icon('chevron-left', 16)} +258 ${esc(phoneFmt(telefone))}</button>
+      <h1 class="login__title">Acesso de desenvolvedor</h1>
+      <p class="login__lead">Este número está reservado para a manutenção do sistema. Crie o seu acesso; só é possível uma vez.</p>
+      <form class="login__form" novalidate>
+        <div class="field"><label for="d-nome">Nome completo</label><input class="input login__input" id="d-nome" autocomplete="name" placeholder="Nome e apelido" maxlength="80"></div>
+        <div class="login__row">
+          <div class="field"><label for="d-p1">PIN de 4 dígitos</label><input class="input login__input" id="d-p1" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••"></div>
+          <div class="field"><label for="d-p2">Repita o PIN</label><input class="input login__input" id="d-p2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••"></div>
+        </div>
+        <p class="error-text" data-error ${error ? '' : 'hidden'}>${esc(error)}</p>
+        <button class="btn btn-primary btn-block" type="submit">Criar acesso e entrar</button>
+      </form>`;
+    step.querySelector('[data-back]').addEventListener('click', () => phoneStep());
+    step.querySelector('#d-nome').focus();
+    step.querySelector('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nome = step.querySelector('#d-nome').value.trim().replace(/\s+/g, ' ');
+      const p1 = step.querySelector('#d-p1').value, p2 = step.querySelector('#d-p2').value;
+      const msg = nome.split(' ').length < 2 ? 'Indique o nome e o apelido.' : pinProblem(p1, p2);
+      if (msg) return devSetupStep(msg);
+      try {
+        await store.createSuper({ nome, telefone, pin: p1 });
+        navigate('#/a/painel');
+      } catch (ex) { devSetupStep(ex.message); }
     });
   }
 

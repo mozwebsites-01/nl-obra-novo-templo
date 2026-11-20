@@ -1003,3 +1003,91 @@ dialog.sheet[open] { display: flex; }
 }
 /* Telemóvel: espaço no fim de cada página para a barra inferior nunca tapar conteúdo */
 @media (max-width: 760px) { .a-content { padding-bottom: calc(96px + env(safe-area-inset-bottom)); } }
+
+/* A minha conta (toque no nome ou na inicial, no topo) */
+button.a-me { padding: 4px 10px 4px 4px; margin: -4px 0; border-radius: 10px; text-align: left; cursor: pointer; transition: background var(--t); }
+button.a-me:hover { background: var(--tint); }
+button.a-me:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+@media (max-width: 760px) { button.a-me { padding: 2px; border-radius: 50%; } }
+.account { display: grid; gap: 20px; }
+.account__who { display: flex; align-items: center; gap: 14px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.account__name { font-size: 16px; font-weight: 600; }
+.account__sec { display: grid; gap: 14px; }
+.account__sec h3 { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.account .pin-input { letter-spacing: 0.3em; font-variant-numeric: tabular-nums; }
+
+/* =====================================================================
+   Menu do telemóvel: doca flutuante azul-marinho.
+   A página atual aparece numa pílula branca com o nome; as outras só com o ícone.
+   No gestor, o botão laranja ao centro regista uma contribuição.
+   ===================================================================== */
+.a-nav__fab { display: none; }
+@media (max-width: 760px) {
+  .a-nav {
+    left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom));
+    display: flex; align-items: center; gap: 4px;
+    height: 64px; padding: 8px; border: 0; border-radius: 22px;
+    background: var(--navy);
+    box-shadow: 0 14px 34px rgba(11, 16, 96, 0.30), 0 2px 6px rgba(11, 16, 96, 0.20);
+  }
+  .a-nav a, .a-nav a.is-active {
+    position: relative; flex: 1 1 0; min-width: 0; height: 48px; padding: 0 6px;
+    flex-direction: row; align-items: center; justify-content: center; gap: 6px;
+    border-radius: 15px; font-size: 13px; font-weight: 600;
+    color: rgba(255, 255, 255, 0.62); background: transparent;
+    transition: flex-grow 280ms var(--ease), background 220ms var(--ease), color 220ms var(--ease), transform 120ms var(--ease);
+  }
+  .a-nav a .i { flex: none; stroke-width: 1.6; }
+  .a-nav a .a-nav__short { display: none; }
+  .a-nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+  .a-nav a:active { transform: scale(0.94); }
+  .a-nav a.is-active { flex-grow: 2.7; color: var(--navy); background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12); }
+  .a-nav a.is-active .a-nav__short { display: block; letter-spacing: -0.01em; }
+  .a-nav a.is-active .i { stroke-width: 2; }
+  .a-nav a.is-active::before, .a-nav a.is-active::after { content: none; }
+  .a-nav .badge { top: 4px; left: 50%; transform: translateX(4px); box-shadow: 0 0 0 2px var(--navy); }
+
+  /* Botão central (gestor): sobe acima da doca */
+  .a-nav__fab {
+    display: grid; place-items: center; flex: none; width: 54px; height: 54px; margin: -30px 2px 0;
+    border-radius: 18px; background: var(--orange); color: #fff;
+    border: 4px solid var(--bg);
+    box-shadow: 0 10px 22px rgba(217, 128, 10, 0.35);
+    transition: transform 140ms var(--ease), box-shadow 140ms var(--ease);
+  }
+  .a-nav__fab .i { stroke-width: 2.2; }
+  .a-nav__fab:active { transform: scale(0.93); }
+  /* Com o botão central, o atalho do topo deixa de ser preciso */
+  .is-admin:has(.a-nav__fab) .a-bar__cta, .is-admin:has(.a-nav__fab) .a-bar__sep { display: none; }
+
+  .a-content { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 360px) {
+  .a-nav { left: 8px; right: 8px; padding: 6px; gap: 2px; }
+  .a-nav a.is-active { flex-grow: 2.4; font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .a-nav a, .a-nav__fab { transition: none; } }
+/* Ícones com largura fixa; a pílula da página atual fica com o espaço que sobra */
+@media (max-width: 760px) {
+  .a-nav { gap: 3px; justify-content: space-between; }
+  .a-nav a { flex: 0 0 40px; padding: 0; }
+  .a-nav a.is-active { flex: 1 1 auto; padding: 0 10px; max-width: 150px; }
+}
+@media (max-width: 360px) { .a-nav a { flex-basis: 38px; } .a-nav a.is-active { padding: 0 8px; } }
+/* Gestor: dois itens de cada lado do botão central, sempre equilibrados */
+@media (max-width: 760px) {
+  .a-nav:has(.a-nav__fab) { display: grid; grid-template-columns: 1fr 1fr 60px 1fr 1fr; gap: 4px; }
+  .a-nav:has(.a-nav__fab) a, .a-nav:has(.a-nav__fab) a.is-active {
+    flex: none; width: 100%; max-width: none; height: 48px; padding: 0 2px;
+    flex-direction: column; gap: 2px; font-size: 11px; border-radius: 14px;
+  }
+  .a-nav:has(.a-nav__fab) a .a-nav__short { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .a-nav:has(.a-nav__fab) .a-nav__fab { justify-self: center; margin: -30px 0 0; }
+}
+/* Menu do telemóvel: sem sombras nem contornos — formas planas */
+@media (max-width: 760px) {
+  .a-nav { box-shadow: none; border: 0; }
+  .a-nav a, .a-nav a.is-active { box-shadow: none; border: 0; }
+  .a-nav__fab { box-shadow: none; border: 0; }
+  .a-nav .badge { box-shadow: none; }
+}
