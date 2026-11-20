@@ -7,7 +7,17 @@ let deferredPrompt = null;
 
 export function initInstall() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => { /* sem service worker: a app continua a funcionar no navegador */ });
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then((reg) => reg.update())
+      .catch(() => { /* sem service worker: a app continua a funcionar no navegador */ });
+    // Versão nova instalada: recarrega uma vez para mostrar logo as alterações
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloaded) return;
+      reloaded = true;
+      location.reload();
+    });
   }
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();

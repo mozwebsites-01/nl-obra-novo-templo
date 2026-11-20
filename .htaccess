@@ -19,6 +19,10 @@ DirectoryIndex index.html
   <FilesMatch "^(sw\.js|index\.html|manifest\.webmanifest)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
+  # Estilos e código: o navegador confirma sempre se há versão nova (sem esperar 7 dias)
+  <FilesMatch "\.(css|js|mjs)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
   # Imagens e ícones podem ficar em cache uma semana
   <FilesMatch "\.(png|jpg|jpeg|svg)$">
     Header set Cache-Control "public, max-age=604800"
